@@ -3,7 +3,7 @@ project:
   output-dir: docs
 
 website:
-  title: "website"
+  title: "The SMU-affiliated Research Corpus"
   navbar:
     left:
       - href: index.qmd
