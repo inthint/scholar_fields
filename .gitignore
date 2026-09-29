@@ -4,4 +4,10 @@ data_clean/
 data_raw/
 scripts/
 papers/
-**/.DS_Store
+.DS_Store
+
+.Rhistory
+.RData
+.Rproj.user/
+
+_site/
