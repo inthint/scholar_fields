@@ -8,7 +8,10 @@ website:
     left:
       - href: index.qmd
         text: Home
-      - about.qmd
+      - href: about.qmd
+        text: About
+      - href: full_keyword_network.qmd
+        text: Keyword Network
 
 format:
   html:
@@ -18,3 +21,9 @@ format:
 
 editor: visual
 
+bibliography: references.bib
+
+execute:
+  echo: false
+  warning: false
+  message: false

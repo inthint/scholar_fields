@@ -1,2 +1,6 @@
 /.quarto/
 .Rproj.user
+data_clean/
+data_raw/
+scripts/
+*.qmd
