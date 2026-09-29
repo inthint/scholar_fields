@@ -1,6 +1,10 @@
 project:
   type: website
   output-dir: docs
+  render:
+  - index.qmd
+  - full_keyword_network.qmd
+  - about.qmd
 
 website:
   title: "The SMU-affiliated Research Corpus"
@@ -27,3 +31,5 @@ execute:
   echo: false
   warning: false
   message: false
+
+

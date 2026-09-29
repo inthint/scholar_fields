@@ -1,0 +1,1923 @@
+---
+title: "Keyword Co-occurance Analysis"
+---
+
+```{=html}
+<style>
+table.dataTable th {
+  white-space: nowrap;
+  vertical-align: middle;
+}
+
+table.dataTable td {
+  vertical-align: top;
+}
+
+table.dataTable td.dt-center,
+table.dataTable th.dt-center {
+  text-align: center;
+}
+
+table.dataTable td.dt-wrap {
+  white-space: normal;
+  line-height: 1.35;
+}
+
+.vis-network {
+  border: 1px solid #808080;
+  box-sizing: border-box;
+}
+</style>
+```
+
+```{r}
+#| label: setup-keyword-network
+#| include: false
+
+library(tidyverse)
+library(igraph)
+
+# -------------------------------------------------------------------------
+# CREATE KEYWORD CO-OCCURRENCE MATRIX
+# -------------------------------------------------------------------------
+#
+# The intersecting cells record how many times two research concepts
+# appear together in the same publication.
+#
+# The example contains two relatively cohesive groups:
+#
+#   Masculinity / Sport / Identity
+#
+#   Network Analysis / Bibliometrics / Data Science
+#
+# A single weaker relationship connects the two groups.
+
+matrix_data <- matrix(
+  c(
+    0, 4, 3, 0, 0, 0,
+    4, 0, 5, 0, 0, 0,
+    3, 5, 0, 1, 0, 0,
+    0, 0, 1, 0, 6, 4,
+    0, 0, 0, 6, 0, 5,
+    0, 0, 0, 4, 5, 0
+  ),
+  nrow = 6,
+  byrow = TRUE,
+  dimnames = list(
+    c(
+      "Masculinity",
+      "Sport",
+      "Identity",
+      "Network Analysis",
+      "Bibliometrics",
+      "Data Science"
+    ),
+    c(
+      "Masculinity",
+      "Sport",
+      "Identity",
+      "Network Analysis",
+      "Bibliometrics",
+      "Data Science"
+    )
+  )
+)
+
+
+# -------------------------------------------------------------------------
+# CONVERT MATRIX TO NETWORK
+# -------------------------------------------------------------------------
+
+toy_graph <-
+  graph_from_adjacency_matrix(
+    matrix_data,
+    mode = "undirected",
+    weighted = TRUE,
+    diag = FALSE
+  )
+
+
+# -------------------------------------------------------------------------
+# IDENTIFY NETWORK COMMUNITIES
+# -------------------------------------------------------------------------
+
+graph_communities <-
+  cluster_louvain(
+    toy_graph,
+    weights = E(toy_graph)$weight
+  )
+
+V(toy_graph)$community <-
+  membership(graph_communities)
+
+
+# -------------------------------------------------------------------------
+# ASSIGN COMMUNITY COLOURS
+# -------------------------------------------------------------------------
+
+muted_palette <-
+  c(
+    "#5B7B88",
+    "#D1A392"
+  )
+
+V(toy_graph)$color <-
+  muted_palette[
+    V(toy_graph)$community
+  ]
+
+
+# -------------------------------------------------------------------------
+# SCALE AND COLOUR EDGES
+# -------------------------------------------------------------------------
+#
+# Edge width represents the number of times the connected keywords
+# co-occur across the publications.
+
+E(toy_graph)$width <-
+  E(toy_graph)$weight * 1.5
+
+
+# Edges within a community take the colour of that community.
+# The edge connecting the two communities is shown in grey.
+
+E(toy_graph)$color <-
+  sapply(
+    E(toy_graph),
+    function(e) {
+
+      v_head <-
+        head_of(
+          toy_graph,
+          e
+        )
+
+      v_tail <-
+        tail_of(
+          toy_graph,
+          e
+        )
+
+      if (
+        V(toy_graph)$community[v_head] ==
+        V(toy_graph)$community[v_tail]
+      ) {
+
+        V(toy_graph)$color[v_head]
+
+      } else {
+
+        "gray90"
+
+      }
+    }
+  )
+
+
+# -------------------------------------------------------------------------
+# CALCULATE NETWORK LAYOUT
+# -------------------------------------------------------------------------
+#
+# A fixed seed makes the example reproducible.
+
+set.seed(1234)
+
+spatial_layout <-
+  layout_with_fr(
+    toy_graph,
+    weights = E(toy_graph)$weight
+  )
+
+extended_layout <-
+  norm_coords(
+    spatial_layout,
+    ymin = -1.1,
+    ymax = 1.1,
+    xmin = -1.1,
+    xmax = 1.1
+  )
+```
+
+I use keyword co-occurrence analysis to examine the substantive organization of the SMU-affiliated corpus. The method belongs to the same broad family of bibliometric techniques as co-citation and co-author analysis, but its object is different: rather than asking which authors collaborate or which publications are cited together, it asks which research terms co-occur across a collection of publications. Authors and databases use keywords to characterize the content of a publication, typically identifying concepts, topics, methods, populations, objects of study, or research problems. The underlying assumption is that these terms are not distributed randomly. When two keywords repeatedly appear together in the same publications, that recurrence provides evidence that the ideas are being brought into relation within the literature. Co-word analysis therefore allows me to move from a collection of individual publications to a representation of the substantive relationships that recur across the corpus, without beginning from a predetermined classification of the literature.
+
+A keyword co-occurrence network is constructed by first counting these relationships. In the simplified example, a co-occurrence matrix contains six research terms in its rows and columns, with each intersecting cell recording how many times a pair of terms appears together. *Sport* and *Identity*, for example, have a co-occurrence value of five, whereas *Identity* and *Network Analysis* co-occur only once.
+
+```{r}
+#| label: cooccurrence-matrix
+#| echo: false
+#| warning: false
+#| message: false
+
+matrix_data |>
+  as.data.frame() |>
+  tibble::rownames_to_column(
+    var = "Keyword"
+  ) |>
+  knitr::kable(
+    align = c(
+      "l",
+      rep("c", 6)
+    ),
+    caption = "Example Keyword Co-Occurrence Matrix"
+  )
+```
+
+The matrix is then converted into an undirected, weighted network using methods of network analysis. Each keyword becomes a node, and an edge connects two nodes when the corresponding keywords occur together in at least one publication. The weight of the edge records the frequency of that co-occurrence, allowing more recurrent relationships to be represented by thicker lines.
+
+Once represented as a network, additional measures can be used to describe the position of individual terms and the structure of the network as a whole. Degree records the number of other keywords to which a term is directly connected, so a high-degree keyword is more extensively embedded in the network than one with relatively few connections. Community-detection algorithms such as Louvain identify groups of keywords that are more densely connected to one another than to the rest of the network.
+
+```{r}
+#| label: keyword-cooccurrence-network
+#| echo: false
+#| warning: false
+#| message: false
+#| fig-align: center
+#| fig-width: 10
+#| fig-height: 7
+#| fig-cap: "Example Keyword Co-Occurrence Network"
+
+plot(
+  toy_graph,
+
+  layout =
+    extended_layout,
+
+  rescale =
+    FALSE,
+
+  vertex.size =
+    6,
+
+  vertex.label =
+    V(toy_graph)$name,
+
+  vertex.label.cex =
+    0.9,
+
+  vertex.label.color =
+    "#1A1A1A",
+
+  vertex.label.font =
+    2,
+
+  vertex.label.dist =
+    0.7,
+
+  vertex.label.degree =
+    -pi / 4,
+
+  main =
+    "Keyword Co-Occurrence & Research Community Detection"
+)
+```
+
+In the toy example, *Masculinity*, *Sport*, and *Identity* form one such group, while *Network Analysis*, *Bibliometrics*, and *Data Science* form another. The strongest relationships include *Network Analysis–Bibliometrics* (6), *Sport–Identity* (5), and *Bibliometrics–Data Science* (5). By contrast, the single co-occurrence between *Identity* and *Network Analysis* creates a comparatively weak bridge between the two communities. The visualization therefore makes both internal cohesion and cross-community connection visible. Spatial position should be interpreted cautiously, however, because it is partly a consequence of the layout algorithm rather than an independent substantive property.
+
+What the resulting network reveals is not simply which keywords are common, but how the substantive vocabulary of a research corpus is organized relationally. Nodes identify the concepts present in the literature; degree indicates how broadly those concepts are connected; edge weights show which associations recur more or less frequently; and communities identify concentrations of terms that repeatedly occur together. When the highly connected terms within a community point toward a coherent substantive concern, those communities can reasonably be interpreted as research areas or thematic formations. The network can also identify bridging concepts that connect otherwise distinct areas of research and more peripheral terms that occupy specialized positions.
+
+## The SMU-affiliated keyword network
+
+In what follows, I use keyword co-occurrence analysis to map recurring intellectual associations within the SMU-affiliated corpus of 7,850 publications. The network focuses on how the terms used to describe those publications are connected. Groups of densely connected keywords are represented as communities, but these communities should not be understood as predetermined departments, disciplines, or administrative categories. They are emergent groupings of concepts, research problems, methods, populations, and objects of study that recur together across the corpus. The resulting network therefore provides a way of examining both what SMU-affiliated researchers study and how different areas of research are related within the indexed literature.
+
+A connection between two keywords indicates that the terms have been used together in describing the same scholarly output; it does not imply that they have the same meaning or necessarily belong to the same discipline. What matters analytically is the pattern of relationships among terms. A keyword may be highly connected because it appears alongside many different topics, while another may occupy a more specialized position because its connections are concentrated within a narrower area of research. The network is therefore best understood as a map of research association and connectedness rather than simply a count of topics.
+
+The network combines two forms of keyword metadata. Author keywords are terms selected by authors to describe the subject matter of their publications, while database-generated keywords, such as Keywords Plus, are derived from information in the bibliographic record to identify additional topical relationships. These were combined before constructing the network to provide a broader representation of the subjects and concepts associated with each publication. As a result, a node labelled *migration*, *galaxies*, *education*, or another term represents a keyword in the bibliographic description of the corpus, not a researcher, department, publication, or project.
+
+The vocabulary itself is heterogeneous. Some keywords identify broad substantive areas, while others refer to theoretical concepts, research methods, populations, geographic locations, objects of study, scientific processes, or highly specialized phenomena. Because author-supplied and database-generated keywords are combined, the network should be interpreted as a representation of how SMU research is bibliographically described and connected, rather than as a direct inventory of the concepts researchers themselves would necessarily identify as most important.
+
+## How to use the network and tables
+
+The interactive network provides the broadest view of these relationships. Use the keyword search above the network to locate a particular term. Selecting a keyword highlights its node in yellow with a black border. Once selected, the nodes connected directly to that keyword are also highlighted. The network can then be zoomed and panned to bring these linked nodes into focus, and individual nodes may be dragged to make crowded areas easier to inspect. Moving a node changes only its position on the screen and does not alter the underlying network analysis.
+
+When you look at a keyword together with all of its neighbours, you are looking at that keyword's immediate local network. The selected keyword is the focal term, and each neighbour is another keyword that appeared with it in the metadata of at least one publication in the corpus. The neighbourhood therefore shows the set of topics, concepts, methods, populations, places, or objects of study that have been directly associated with that keyword in SMU-affiliated research. This neighbourhood can be interpreted as a picture of the keyword's intellectual context. A keyword with neighbours drawn largely from its own community is embedded mainly within a relatively concentrated area of research. Selecting the keywords "behaviour", "radial velocities", "health", "management history", or "actor network theory" from the keyword drop down search menu offers an illustration of this type of pattern. A keyword whose neighbours span several communities may instead connect otherwise distinct areas of scholarly activity. Selecting the keywords "origin", "sequence", or "evolution" will illustrate this type of pattern.
+
+Nodes with the same colour belong to the same intellectual community.[^1] Node size represents degree of connectedness: larger nodes are directly connected to a greater number of other keywords in the network, while smaller nodes have fewer direct connections and tend to occupy more specialized positions. Node size therefore represents network connectedness rather than the quality, importance, or volume of research associated with a keyword.
+
+[^1]: At this point the identity of these communities–what they are "about" or represent–remains under consideration.
+
+The tables provide complementary ways of examining the same network.
+
+-   The Keyword neighbours table allows a reader to select an exact keyword and retrieve all of the terms directly connected to it, ordered by the strength of their co-occurrence. This value is a measure of how often the focal keyword and a particular neighbour appear together in the publication metadata. For example, searching for the keyword term "health" in this table reveals that "health" and "canada" co-occur 9 times in this dataset.
+
+-   The Community profiles table provides a compact overview of the vocabulary associated with each intellectual community.
+
+-   The Community vocabulary table lists every keyword in the network by community, allowing readers to move beyond the most prominent terms and examine more specialized areas that may be difficult to identify visually. The Community profiles and Community vocabulary look up tables provide insight into the structure of these communities. The keyword "health", for examples belongs to community two and has a rank 12, indicating that it is the twelfth most commonly connected term in this research commuinity.
+
+The tables report each keyword's rank and degree.[^2]
+
+[^2]: Rank orders keywords within their own community according to degree, with Rank 1 indicating the most highly connected keyword in that community. Degree is the number of other keyword nodes to which a keyword is directly connected. A higher degree therefore indicates that the term is connected to a wider range of other keywords in the corpus. Rank and degree describe network connectedness and should not be interpreted as measures of research quality or importance.
+
+In the spirit of "member checking" [@birt2016; @mckim], I am curious how you might label these communities. Based on your understanding of your own scholarly activity and the keyword clusters, what would be a reasonable description of one, some, or all of these communities?
+
+```{r}
+#| include: false
+
+# =============================================================================
+# PACKAGES
+# =============================================================================
+
+library(igraph)
+library(visNetwork)
+library(here)
+library(scales)
+library(dplyr)
+library(tibble)
+library(DT)
+library(htmltools)
+
+
+# =============================================================================
+# LOAD THE SAVED thematicMap() OBJECT
+# =============================================================================
+
+full_smu_corpus_network <-
+  readRDS(
+    here::here(
+      "data_clean/full_smu_corpus_network.rds"
+    )
+  )
+
+
+# =============================================================================
+# EXTRACT THE IGRAPH NETWORK
+# =============================================================================
+
+g <-
+  full_smu_corpus_network$net$graph
+
+
+# =============================================================================
+# PRESERVE THE ORIGINAL thematicMap() LAYOUT
+# =============================================================================
+
+original_layout <-
+  igraph::graph_attr(
+    g,
+    "layout"
+  )
+
+
+stopifnot(
+  nrow(original_layout) == igraph::vcount(g),
+  ncol(original_layout) >= 2
+)
+
+
+x_coords <-
+  scales::rescale(
+    original_layout[, 1],
+    to = c(-2000, 2000)
+  )
+
+
+y_coords <-
+  scales::rescale(
+    original_layout[, 2],
+    to = c(2000, -2000)
+  )
+
+
+# =============================================================================
+# CREATE SIMPLE INTEGER NODE IDS
+# =============================================================================
+
+node_lookup <-
+  tibble::tibble(
+
+    id =
+      seq_len(
+        igraph::vcount(g)
+      ),
+
+    keyword =
+      igraph::V(g)$name
+
+  )
+
+
+# =============================================================================
+# COMMUNITY COLOURS
+# =============================================================================
+
+node_colours <-
+  as.character(
+    igraph::V(g)$color
+  )
+
+
+node_colours[
+  is.na(node_colours) |
+    node_colours == ""
+] <-
+  "#808080"
+
+
+# =============================================================================
+# SIMPLIFIED GRAPH AND DEGREE
+# =============================================================================
+#
+# Degree is calculated on a simplified copy of the graph so that loops and
+# duplicate edges do not inflate the number of unique neighbours.
+
+g_degree <-
+  igraph::simplify(
+    g,
+    remove.multiple = TRUE,
+    remove.loops = TRUE
+  )
+
+
+degree_named <-
+  igraph::degree(
+    g_degree,
+    mode = "all"
+  )
+
+
+degree_values <-
+  as.numeric(
+    degree_named[
+      match(
+        igraph::V(g)$name,
+        names(degree_named)
+      )
+    ]
+  )
+
+
+degree_values[
+  !is.finite(degree_values)
+] <-
+  0
+
+
+# =============================================================================
+# NODE SIZE
+# =============================================================================
+
+node_size_value <-
+  sqrt(
+    degree_values
+  )
+
+
+
+# =============================================================================
+# COMMUNITY SELECTION VARIABLE
+# =============================================================================
+#
+# Create a human-readable community label for the community selector.
+#
+# This is kept separate from visNetwork's special "group" attribute so that
+# the existing node colours remain under our control.
+
+community_select <-
+  paste(
+    "Community",
+    igraph::V(g)$community
+  )
+
+
+# =============================================================================
+# visNetwork NODE TABLE
+# =============================================================================
+
+nodes <-
+  data.frame(
+
+    id =
+      node_lookup$id,
+
+    label =
+      node_lookup$keyword,
+
+    # Used by selectedBy() to highlight an entire intellectual community.
+
+    community_select =
+      community_select,
+
+    x =
+      x_coords,
+
+    y =
+      y_coords,
+
+    value =
+      node_size_value,
+
+    color.background =
+      node_colours,
+
+    color.border =
+      node_colours,
+
+    color.highlight.background =
+      "#FFD54F",
+
+    color.highlight.border =
+      "#000000",
+
+    borderWidth =
+      0.5,
+
+    borderWidthSelected =
+      6,
+
+    stringsAsFactors =
+      FALSE
+
+  )
+# =============================================================================
+# visNetwork EDGE TABLE
+# =============================================================================
+
+edge_data <-
+  igraph::as_data_frame(
+    g,
+    what = "edges"
+  )
+
+
+edges <-
+  data.frame(
+
+    from =
+      match(
+        edge_data$from,
+        node_lookup$keyword
+      ),
+
+    to =
+      match(
+        edge_data$to,
+        node_lookup$keyword
+      ),
+
+    stringsAsFactors =
+      FALSE
+
+  )
+
+
+stopifnot(
+  !anyNA(edges$from),
+  !anyNA(edges$to)
+)
+
+
+# =============================================================================
+# INTERACTIVE NETWORK
+# =============================================================================
+
+network_interactive <-
+  visNetwork::visNetwork(
+
+    nodes =
+      nodes,
+
+    edges =
+      edges,
+
+    width =
+      "100%",
+
+    height =
+      "1100px"
+
+  ) |>
+
+  visNetwork::visNodes(
+
+    shape =
+      "dot",
+
+    scaling =
+      list(
+        min = 6,
+        max = 40
+      ),
+
+    labelHighlightBold =
+      TRUE
+
+  ) |>
+
+  visNetwork::visEdges(
+
+    color =
+      list(
+
+        color =
+          "rgba(150,150,150,0.25)",
+
+        highlight =
+          "#222222",
+
+        hover =
+          "#222222"
+
+      ),
+
+    width =
+      0.5,
+
+    selectionWidth =
+      3,
+
+    smooth =
+      FALSE
+
+  ) |>
+
+  visNetwork::visPhysics(
+
+    enabled =
+      FALSE
+
+  ) |>
+
+  visNetwork::visInteraction(
+
+    dragNodes =
+      TRUE,
+
+    dragView =
+      TRUE,
+
+    zoomView =
+      TRUE,
+
+    hideEdgesOnDrag =
+      TRUE,
+
+    hideEdgesOnZoom =
+      TRUE,
+
+    selectConnectedEdges =
+      TRUE,
+
+    navigationButtons =
+      TRUE,
+
+    hover =
+      FALSE
+
+  ) |>
+
+visNetwork::visOptions(
+
+  # ---------------------------------------------------------------------------
+  # HIGHLIGHT A SELECTED NODE AND ITS DIRECT NEIGHBOURS
+  # ---------------------------------------------------------------------------
+
+  highlightNearest =
+    list(
+
+      enabled =
+        TRUE,
+
+      degree =
+        1,
+
+      hover =
+        FALSE,
+
+      algorithm =
+        "all",
+
+      hideColor =
+        "rgba(200,200,200,0.08)",
+
+      labelOnly =
+        FALSE
+
+    ),
+
+
+  # ---------------------------------------------------------------------------
+  # FIND AN INDIVIDUAL KEYWORD
+  # ---------------------------------------------------------------------------
+
+  nodesIdSelection =
+    list(
+
+      enabled =
+        TRUE,
+
+      useLabels =
+        TRUE,
+
+      main =
+        "Find a keyword",
+
+      style =
+        "width: 350px; height: 30px;"
+
+    ),
+
+
+  # ---------------------------------------------------------------------------
+  # HIGHLIGHT AN INTELLECTUAL COMMUNITY
+  # ---------------------------------------------------------------------------
+  #
+  # Selecting a community keeps its nodes in their original colours while
+  # fading nodes that do not belong to that community.
+  #
+  # The underlying network layout is not changed.
+
+  selectedBy =
+    list(
+
+      variable =
+        "community_select",
+
+      main =
+        "Highlight a community",
+
+      multiple =
+        FALSE,
+
+      hideColor =
+        "rgba(200,200,200,0.08)",
+
+      style =
+        "width: 250px; height: 30px;"
+
+    )
+
+) |> 
+  visNetwork::visEvents(
+
+    click = "
+      function(properties) {
+
+        if (
+          !properties.nodes ||
+          properties.nodes.length !== 1
+        ) {
+          return;
+        }
+
+        var selectedNode =
+          properties.nodes[0];
+
+        var neighbours =
+          this.getConnectedNodes(
+            selectedNode
+          );
+
+        var neighbourhood =
+          [selectedNode].concat(
+            neighbours
+          );
+
+        this.fit({
+
+          nodes:
+            neighbourhood,
+
+          maxZoomLevel:
+            1.5,
+
+          animation: {
+
+            duration:
+              500,
+
+            easingFunction:
+              'easeInOutQuad'
+
+          }
+
+        });
+
+      }
+    "
+
+  )
+
+
+# =============================================================================
+# MASTER KEYWORD DATA
+# =============================================================================
+
+keyword_data <-
+  tibble::tibble(
+
+    keyword =
+      igraph::V(g)$name,
+
+    community =
+      igraph::V(g)$community,
+
+    degree =
+      degree_values
+
+  ) |>
+
+  dplyr::group_by(
+    community
+  ) |>
+
+  dplyr::arrange(
+    dplyr::desc(degree),
+    keyword,
+    .by_group = TRUE
+  ) |>
+
+  dplyr::mutate(
+
+    rank =
+      dplyr::row_number()
+
+  ) |>
+
+  dplyr::ungroup()
+
+
+# =============================================================================
+# KEYWORD LOOKUP TABLE
+# =============================================================================
+
+keyword_lookup_table <-
+  keyword_data |>
+
+  dplyr::select(
+
+    keyword,
+
+    community,
+
+    rank,
+
+    degree
+
+  ) |>
+
+  dplyr::arrange(
+    keyword
+  )
+
+
+# =============================================================================
+# KEYWORD NEIGHBOURS AND EDGE STRENGTH
+# =============================================================================
+#
+# I use the simplified graph to determine the UNIQUE neighbour relationships.
+#
+# The original graph is then used to obtain the edge weight associated with
+# each keyword pair.
+#
+# Because the graph is undirected, each relationship is stored in both
+# directions so that either term can be used as the focal search keyword.
+
+
+# Extract edge weights from the original graph.
+
+edge_lookup <-
+  igraph::as_data_frame(
+    g,
+    what = "edges"
+  )
+
+
+stopifnot(
+  "weight" %in% names(edge_lookup)
+)
+
+
+edge_lookup <-
+  edge_lookup |>
+
+  dplyr::transmute(
+
+    from =
+      as.character(from),
+
+    to =
+      as.character(to),
+
+    cooccurrences =
+      as.numeric(weight),
+
+    pair_a =
+      pmin(
+        as.character(from),
+        as.character(to)
+      ),
+
+    pair_b =
+      pmax(
+        as.character(from),
+        as.character(to)
+      )
+
+  ) |>
+
+  # If duplicate edges exist in the original graph, combine their weights
+  # into one value for the keyword pair.
+
+  dplyr::group_by(
+    pair_a,
+    pair_b
+  ) |>
+
+  dplyr::summarise(
+
+    cooccurrences =
+      sum(
+        cooccurrences,
+        na.rm = TRUE
+      ),
+
+    .groups =
+      "drop"
+
+  )
+
+
+# Extract unique neighbour pairs from the simplified graph.
+
+unique_edges <-
+  igraph::as_data_frame(
+    g_degree,
+    what = "edges"
+  ) |>
+
+  dplyr::transmute(
+
+    from =
+      as.character(from),
+
+    to =
+      as.character(to),
+
+    pair_a =
+      pmin(
+        as.character(from),
+        as.character(to)
+      ),
+
+    pair_b =
+      pmax(
+        as.character(from),
+        as.character(to)
+      )
+
+  ) |>
+
+  dplyr::left_join(
+    edge_lookup,
+    by = c(
+      "pair_a",
+      "pair_b"
+    )
+  )
+
+
+# Create both directions of every undirected relationship.
+
+neighbour_edge_table <-
+  dplyr::bind_rows(
+
+    unique_edges |>
+
+      dplyr::transmute(
+
+        keyword =
+          from,
+
+        neighbour =
+          to,
+
+        cooccurrences =
+          cooccurrences
+
+      ),
+
+    unique_edges |>
+
+      dplyr::transmute(
+
+        keyword =
+          to,
+
+        neighbour =
+          from,
+
+        cooccurrences =
+          cooccurrences
+
+      )
+
+  ) |>
+
+  dplyr::distinct(
+    keyword,
+    neighbour,
+    .keep_all = TRUE
+  )
+
+
+# Add attributes describing the neighbouring keyword.
+
+neighbour_attributes <-
+  keyword_data |>
+
+  dplyr::select(
+
+    neighbour =
+      keyword,
+
+    community,
+
+    rank,
+
+    degree
+
+  )
+
+
+neighbour_edge_table <-
+  neighbour_edge_table |>
+
+  dplyr::left_join(
+    neighbour_attributes,
+    by = "neighbour"
+  ) |>
+
+  dplyr::arrange(
+    keyword,
+    dplyr::desc(cooccurrences),
+    dplyr::desc(degree),
+    neighbour
+  )
+
+
+# =============================================================================
+# EXACT KEYWORD NEIGHBOUR SEARCH
+# =============================================================================
+#
+# The ordinary DT global search performs substring matching.
+#
+# For this lookup we instead use a separate autocomplete field and filter
+# the hidden focal-keyword column with an anchored regular expression:
+#
+#     ^keyword$
+#
+# This means a search for "sets" returns ONLY the neighbours of the exact
+# node "sets", rather than also returning "datasets", "data sets", etc.
+
+
+neighbour_keywords <-
+  sort(
+    unique(
+      neighbour_edge_table$keyword
+    )
+  )
+
+
+keyword_search_control <-
+  htmltools::tags$div(
+
+    style =
+      "margin-bottom: 12px;",
+
+    htmltools::tags$label(
+
+      `for` =
+        "neighbour-keyword-search",
+
+      "Search keyword: "
+
+    ),
+
+    htmltools::tags$input(
+
+      id =
+        "neighbour-keyword-search",
+
+      type =
+        "search",
+
+      list =
+        "neighbour-keyword-list",
+
+      placeholder =
+        "Enter or select an exact keyword",
+
+      autocomplete =
+        "off",
+
+      style =
+        "width: 350px; padding: 6px;"
+
+    ),
+
+    htmltools::tags$datalist(
+
+      id =
+        "neighbour-keyword-list",
+
+      lapply(
+
+        neighbour_keywords,
+
+        function(x) {
+
+          htmltools::tags$option(
+            value = x
+          )
+
+        }
+
+      )
+
+    )
+
+  )
+
+
+# =============================================================================
+# EXACT KEYWORD NEIGHBOUR TABLE
+# =============================================================================
+
+# =============================================================================
+# EXACT KEYWORD NEIGHBOUR TABLE
+# =============================================================================
+
+neighbour_table_widget <-
+  DT::datatable(
+
+    neighbour_edge_table,
+
+    rownames = FALSE,
+
+    class = "display compact stripe hover",
+
+    # Make the widget occupy the full available page width.
+
+    width = "100%",
+
+    colnames = c(
+      "Search keyword",
+      "Neighbour",
+      "Co-occurrences",
+      "Community",
+      "Rank",
+      "Degree"
+    ),
+
+    options = list(
+
+      pageLength = 10,
+
+      lengthChange = FALSE,
+
+      paging = TRUE,
+
+      # Do not use horizontal scrolling for this table.
+      #
+      # The five visible columns fit comfortably across the page, and
+      # avoiding scrollX prevents DataTables from constructing separate
+      # header and body tables that can become misaligned.
+
+      scrollX = FALSE,
+
+      autoWidth = FALSE,
+
+      searching = TRUE,
+
+      # Hide the normal DataTables search box.
+      #
+      # The custom exact-keyword lookup remains above the table.
+
+      dom = "tip",
+
+      columnDefs = list(
+
+        # Hidden focal-keyword column.
+        #
+        # This remains available for exact filtering but is not displayed.
+
+        list(
+          targets = 0,
+          visible = FALSE,
+          searchable = TRUE
+        ),
+
+        # Neighbour
+
+        list(
+          targets = 1,
+          width = "40%"
+        ),
+
+        # Co-occurrences
+
+        list(
+          targets = 2,
+          width = "20%",
+          className = "dt-center"
+        ),
+
+        # Community
+
+        list(
+          targets = 3,
+          width = "15%",
+          className = "dt-center"
+        ),
+
+        # Rank
+
+        list(
+          targets = 4,
+          width = "12.5%",
+          className = "dt-center"
+        ),
+
+        # Degree
+
+        list(
+          targets = 5,
+          width = "12.5%",
+          className = "dt-center"
+        )
+
+      ),
+
+      # Order neighbours first by co-occurrence strength
+      # and then by degree.
+
+      order = list(
+        list(2, "desc"),
+        list(5, "desc")
+      )
+
+    ),
+
+    callback =
+      DT::JS(
+        "
+        var input = $('#neighbour-keyword-search');
+
+        function filterExactKeyword() {
+
+          var value =
+            input.val().trim();
+
+          if (value === '') {
+
+            table
+              .column(0)
+              .search('^$', true, false)
+              .draw();
+
+            return;
+          }
+
+          var escaped =
+            $.fn.dataTable.util.escapeRegex(value);
+
+          table
+            .column(0)
+            .search(
+              '^' + escaped + '$',
+              true,
+              false
+            )
+            .draw();
+
+        }
+
+        // Begin with no neighbour rows displayed.
+
+        table
+          .column(0)
+          .search('^$', true, false)
+          .draw();
+
+
+        // Run the exact search when a datalist item is chosen
+        // or when the search field is cleared.
+
+        input.on(
+          'change search',
+          filterExactKeyword
+        );
+
+
+        // Also run the search when Enter is pressed.
+
+        input.on(
+          'keydown',
+          function(e) {
+
+            if (e.key === 'Enter') {
+
+              e.preventDefault();
+
+              filterExactKeyword();
+
+            }
+
+          }
+        );
+        "
+      )
+
+  )
+
+
+# =============================================================================
+# COMPLETE COMMUNITY VOCABULARY TABLE
+# =============================================================================
+
+community_term_table <-
+  keyword_data |>
+
+  dplyr::select(
+
+    
+    keyword,
+    
+    community,
+
+    rank,
+
+    degree
+
+  ) |>
+
+  dplyr::arrange(
+
+    community,
+
+    rank
+
+  )
+
+
+# =============================================================================
+# COMMUNITY PROFILE TABLE
+# =============================================================================
+
+profile_top_n <-
+  12
+
+
+profile_supporting_n <-
+  25
+
+
+community_profile <-
+  keyword_data |>
+
+  dplyr::group_by(
+    community
+  ) |>
+
+  dplyr::arrange(
+    rank,
+    .by_group = TRUE
+  ) |>
+
+  dplyr::summarise(
+
+    n_keywords =
+      dplyr::n(),
+
+    central_keywords =
+      paste(
+
+        head(
+          keyword,
+          profile_top_n
+        ),
+
+        collapse =
+          "; "
+
+      ),
+
+    supporting_keywords =
+      paste(
+
+        head(
+
+          keyword[
+            rank > profile_top_n
+          ],
+
+          profile_supporting_n
+
+        ),
+
+        collapse =
+          "; "
+
+      ),
+
+    .groups =
+      "drop"
+
+  ) |>
+
+  dplyr::arrange(
+    community
+  )
+```
+
+## Interactive research network
+
+```{r}
+#| echo: false
+#| warning: false
+#| message: false
+
+network_interactive
+```
+
+## Keyword neighbours
+
+Enter or select an exact keyword to see all of the terms directly connected to it. The table is ordered by co-occurrence strength, so the relationships that occur most frequently in the corpus appear first. Community, rank, and degree describe the neighbouring keyword rather than the focal keyword.
+
+```{r}
+#| echo: false
+#| warning: false
+#| message: false
+
+htmltools::tagList(
+
+  keyword_search_control,
+
+  neighbour_table_widget
+
+)
+```
+
+## Community profiles
+
+The profile table provides a compact description of the vocabulary associated with each intellectual community.
+
+```{r}
+#| echo: false
+#| warning: false
+#| message: false
+
+DT::datatable(
+
+  community_profile,
+
+  rownames =
+    FALSE,
+
+  colnames =
+    c(
+      "Community",
+      "Number of keywords",
+      "Central keywords",
+      "Supporting keywords"
+    ),
+
+  options =
+    list(
+
+      pageLength =
+        10,
+
+      lengthChange =
+        FALSE,
+
+      paging =
+        TRUE,
+
+      searching =
+        TRUE,
+
+      ordering =
+        TRUE,
+
+      scrollX =
+        FALSE,
+
+      autoWidth =
+        TRUE,
+
+      columnDefs =
+        list(
+
+          list(
+            width = "70px",
+            targets = 0
+          ),
+
+          list(
+            width = "100px",
+            targets = 1
+          ),
+
+          list(
+            width = "450px",
+            targets = 2
+          ),
+
+          list(
+            width = "700px",
+            targets = 3
+          )
+
+        )
+    )
+)
+```
+
+## Community vocabulary
+
+The complete table contains all keywords in the network, organized by community and then by within-community rank.
+
+```{r}
+
+#| echo: false
+#| warning: false
+#| message: false
+
+DT::datatable(
+
+  community_term_table,
+
+  rownames = FALSE,
+
+
+  class = "display compact stripe hover",
+
+  colnames = c(
+    "Keyword",
+    "Community",
+    "Rank",
+    "Degree"
+  ),
+
+  options = list(
+
+    pageLength = 10,
+
+    lengthChange = FALSE,
+
+    paging = TRUE,
+
+    scrollX = FALSE,
+
+    autoWidth = FALSE,
+
+    columnDefs = list(
+
+      list(
+        targets = 0,
+        width = "40%"
+      ),
+
+      list(
+        targets = 1,
+        width = "20%",
+        className = "dt-center"
+      ),
+
+      list(
+        targets = 2,
+        width = "20%",
+        className = "dt-center"
+      ),
+
+      list(
+        targets = 3,
+        width = "20%",
+        className = "dt-center"
+      )
+
+    ),
+
+    order = list(
+      list(1, "asc"),
+      list(2, "asc")
+    ),
+
+    searchHighlight = TRUE
+
+  )
+)
+```
+
+## Author lookup
+
+Search the database by last name to return titles of publications. This provides a faculty-level assessment of coverage. Search using a last name and, optionally, initials, without punctuation. For example: `westhaver r`.
+
+```{r}
+#| echo: false
+#| warning: false
+#| message: false
+
+# =============================================================================
+# AUTHOR SURNAME -> PUBLICATION TITLE LOOKUP
+# =============================================================================
+
+library(dplyr)
+library(DT)
+library(htmltools)
+library(here)
+library(stringr)
+
+
+# =============================================================================
+# LOAD DATA
+# =============================================================================
+
+final_bibliometrix_df <-
+  readRDS(
+    here::here(
+      "data_clean/final_bibliometrix_df.rds"
+    )
+  )
+
+
+# =============================================================================
+# PREPARE AUTHOR + TITLE LOOKUP DATA
+# =============================================================================
+#
+# Assumes:
+#
+#   AU = author field, with authors separated by semicolons
+#   TI = publication title
+#
+# Example AU:
+#
+#   "SMITH J; JONES AB; WESTHAVER R"
+#
+# The AU field is retained for searching but hidden from the visible table.
+
+author_title_lookup <-
+  final_bibliometrix_df |>
+  dplyr::transmute(
+    authors = AU,
+    title = stringr::str_to_title(TI)
+  ) |>
+  dplyr::filter(
+    !is.na(authors),
+    !is.na(title)
+  ) |>
+  dplyr::distinct()
+
+
+# =============================================================================
+# SEARCH CONTROL
+# =============================================================================
+
+author_search_control <-
+  htmltools::tags$div(
+
+    style =
+      "margin-bottom: 12px;",
+
+    htmltools::tags$label(
+
+      `for` =
+        "author-surname-search",
+
+      "Search author last name: "
+
+    ),
+
+    htmltools::tags$input(
+
+      id =
+        "author-surname-search",
+
+      type =
+        "search",
+
+      placeholder =
+        "Enter last name and optional initial",
+
+      autocomplete =
+        "off",
+
+      style =
+        "width: 320px; padding: 6px;"
+
+    )
+
+  )
+
+
+# =============================================================================
+# TITLE TABLE
+# =============================================================================
+
+author_title_table <-
+  DT::datatable(
+
+    author_title_lookup,
+
+    rownames =
+      FALSE,
+
+    colnames =
+      c(
+        "Authors",
+        "Publication title"
+      ),
+
+    options =
+      list(
+
+        pageLength =
+          10,
+
+        lengthChange =
+          FALSE,
+
+        paging =
+          TRUE,
+
+        # Delay construction of rows that are not currently visible.
+        # This improves performance for the relatively large lookup table.
+
+        deferRender =
+          TRUE,
+
+        autoWidth =
+          FALSE,
+
+        searching =
+          TRUE,
+
+        # Hide the full AU field.
+        #
+        # It remains in the table so that the JavaScript search can
+        # filter against it.
+
+        columnDefs =
+          list(
+
+            list(
+              targets = 0,
+              visible = FALSE,
+              searchable = TRUE
+            ),
+
+            list(
+              targets = 1,
+              width = "100%"
+            )
+
+          ),
+
+        # Remove DataTables' ordinary search box.
+        #
+        # The custom author search field above is used instead.
+
+        dom =
+          "tip"
+
+      ),
+
+    callback =
+      DT::JS(
+        "
+        var input =
+          $('#author-surname-search');
+
+
+        function searchSurname() {
+
+          var value =
+            input
+              .val()
+              .trim();
+
+
+          // ---------------------------------------------------------------
+          // EMPTY SEARCH
+          // ---------------------------------------------------------------
+
+          if (value === '') {
+
+            table
+              .column(0)
+              .search('')
+              .draw();
+
+            return;
+          }
+
+
+          // ---------------------------------------------------------------
+          // PREPARE SEARCH TERM
+          // ---------------------------------------------------------------
+
+          // Escape characters with special meanings in regular expressions.
+
+          var escaped =
+            $.fn.dataTable.util.escapeRegex(value);
+
+
+          // ---------------------------------------------------------------
+          // AUTHOR MATCH
+          // ---------------------------------------------------------------
+          //
+          // Match the entered surname, with an optional initial, at the
+          // beginning of:
+          //
+          //   - the complete AU field, or
+          //   - an author entry following a semicolon.
+          //
+          // Examples:
+          //
+          //   westhaver
+          //
+          // matches:
+          //
+          //   WESTHAVER R
+          //   WESTHAVER RA
+          //   SMITH J; WESTHAVER R
+          //
+          // and:
+          //
+          //   westhaver r
+          //
+          // matches:
+          //
+          //   WESTHAVER R
+          //   WESTHAVER RA
+          //
+          // but does not match:
+          //
+          //   GOLDSMITH J
+          //
+          // The term must begin a separate author entry.
+
+          var pattern =
+            '(^|;)\\\\s*' +
+            escaped +
+            '(?=\\\\s|,|;|$)';
+
+
+          table
+            .column(0)
+            .search(
+              pattern,
+              true,
+              false
+            )
+            .draw();
+
+        }
+
+
+        // ---------------------------------------------------------------
+        // RUN SEARCH WHEN THE FIELD CHANGES
+        // ---------------------------------------------------------------
+
+        input.on(
+          'search change',
+          searchSurname
+        );
+
+
+        // ---------------------------------------------------------------
+        // RUN SEARCH WHEN ENTER IS PRESSED
+        // ---------------------------------------------------------------
+
+        input.on(
+          'keydown',
+          function(e) {
+
+            if (e.key === 'Enter') {
+
+              e.preventDefault();
+
+              searchSurname();
+
+            }
+
+          }
+        );
+        "
+      )
+
+  )
+
+
+# =============================================================================
+# DISPLAY SEARCH FIELD + RESULTS
+# =============================================================================
+
+htmltools::tagList(
+
+  author_search_control,
+
+  author_title_table
+
+)
+```

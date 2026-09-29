@@ -3,4 +3,5 @@
 data_clean/
 data_raw/
 scripts/
-*.qmd
+papers/
+**/.DS_Store
