@@ -198,8 +198,6 @@ extended_layout <-
   )
 ```
 
-Intro
-
 I use keyword co-occurrence analysis to examine the substantive organization of the SMU-affiliated corpus. The method belongs to the same broad family of bibliometric techniques as co-citation and co-author analysis, but its object is different: rather than asking which authors collaborate or which publications are cited together, it asks which research terms co-occur across a collection of publications. Authors and databases use keywords to characterize the content of a publication, typically identifying concepts, topics, methods, populations, objects of study, or research problems. The underlying assumption is that these terms are not distributed randomly. When two keywords repeatedly appear together in the same publications, that recurrence provides evidence that the ideas are being brought into relation within the literature. Co-word analysis therefore allows me to move from a collection of individual publications to a representation of the substantive relationships that recur across the corpus, without beginning from a predetermined classification of the literature.
 
 A keyword co-occurrence network is constructed by first counting these relationships. In the simplified example, a co-occurrence matrix contains six research terms in its rows and columns, with each intersecting cell recording how many times a pair of terms appears together. *Sport* and *Identity*, for example, have a co-occurrence value of five, whereas *Identity* and *Network Analysis* co-occur only once.
@@ -303,13 +301,11 @@ The tables provide complementary ways of examining the same network.
 
 -   The Community profiles table provides a compact overview of the vocabulary associated with each intellectual community.
 
--   The Community vocabulary table lists every keyword in the network by community, allowing readers to move beyond the most prominent terms and examine more specialized areas that may be difficult to identify visually. The Community profiles and Community vocabulary look up tables provide insight into the structure of these communities. The keyword "health", for examples belongs to community two and has a rank 12, indicating that it is the twelfth most commonly connected term in this research commuinity.
+-   The Community vocabulary table lists every keyword in the network by community, allowing readers to move beyond the most prominent terms and examine more specialized areas that may be difficult to identify visually.
 
-The tables report each keyword's rank and degree.[^2]
+The Community profiles and Community vocabulary look up tables provide insight into the structure of these communities. The tables report each keyword's rank and degree.[^2]
 
 [^2]: Rank orders keywords within their own community according to degree, with Rank 1 indicating the most highly connected keyword in that community. Degree is the number of other keyword nodes to which a keyword is directly connected. A higher degree therefore indicates that the term is connected to a wider range of other keywords in the corpus. Rank and degree describe network connectedness and should not be interpreted as measures of research quality or importance.
-
-In the spirit of "member checking" [@birt2016; @mckim], I am curious how you might label these communities. Based on your understanding of your own scholarly activity and the keyword clusters, what would be a reasonable description of one, some, or all of these communities?
 
 ```{r}
 #| include: false
@@ -1923,3 +1919,11 @@ htmltools::tagList(
 
 )
 ```
+
+## If you've made it this far...
+
+On this basis of the above, what begins to emerge is that the SMU-affiliated research corpus contains 8 research clusters whose "identities" have yet to be specified. 
+
+In the same way that the all the keywords used in the SMU-affiliated corpus can be arranged in a network and "decomposed" into 8 clusters, each of these 8 clusters can be explored in the same way. "Decomposing" these research clusters allows for their structure to be explored more carefully, opening up an opportunity to think more clearly about what each of these 8 research clusters is "about"--and what this might say about the university as a whole.
+
+To that end, eventually, at the top of the page, you'll find links to details about each of the 8 research clusters. Currently, only data for [Research Cluster Two](research_cluster_two.qmd) is available. In the spirit of "member checking" [@birt2016; @mckim], I invite you to review these details. Does this data resonate with your understanding of your own scholarly activity and/or the activity at SMU?

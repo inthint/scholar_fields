@@ -4,18 +4,22 @@ project:
   render:
   - index.qmd
   - full_keyword_network.qmd
+  - research_cluster_two.qmd
   - about.qmd
 
 website:
   title: "The SMU-affiliated Research Corpus"
   navbar:
-    left:
-      - href: index.qmd
-        text: Home
+    right:
       - href: about.qmd
         text: About
+    left:
+      - href: index.qmd
+        text: Start Here
       - href: full_keyword_network.qmd
-        text: Keyword Network
+        text: The SMU-affililated Corpus
+      - href: research_cluster_two.qmd
+        text: Research Cluster Two
 
 format:
   html:

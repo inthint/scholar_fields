@@ -1,0 +1,799 @@
+---
+title: "Specifying Research Cluster 2"
+format: html
+---
+
+```{r}
+#| include: false
+
+# get libraries
+library(tidyverse)
+library(ggwordcloud)
+
+# Load the complete eight-cluster bundle
+data_bundle_research_clusters <-
+  readRDS(
+    here::here(
+      "data_clean",
+      "data_bundle_research_clusters.rds"
+    )
+  )
+
+# =============================================================================
+# EXTRACT ONLY RESEARCH CLUSTER 2
+# =============================================================================
+
+data_bundle_research_cluster_two <-
+  list(
+
+    # -------------------------------------------------------------------------
+    # Research-cluster graph
+    # -------------------------------------------------------------------------
+
+    cluster_graph =
+      data_bundle_research_clusters$
+        cluster_graphs[["cluster_2"]],
+
+
+    # -------------------------------------------------------------------------
+    # Research-cluster layout
+    # -------------------------------------------------------------------------
+
+    cluster_layout =
+      data_bundle_research_clusters$
+        cluster_layouts[["cluster_2"]],
+
+
+    # -------------------------------------------------------------------------
+    # Complete networkPlot() object
+    # -------------------------------------------------------------------------
+
+    research_cluster_network =
+      data_bundle_research_clusters$
+        research_cluster_networks[["cluster_2"]],
+
+
+    # -------------------------------------------------------------------------
+    # Word-cloud data for all communities within Research Cluster 2
+    # -------------------------------------------------------------------------
+
+    wordcloud_data =
+      data_bundle_research_clusters$
+        wordcloud_data[["cluster_2"]],
+
+
+    # -------------------------------------------------------------------------
+    # Word-cloud plots for all communities within Research Cluster 2
+    # -------------------------------------------------------------------------
+
+    wordcloud_plots =
+      data_bundle_research_clusters$
+        wordcloud_plots[["cluster_2"]],
+
+
+    # -------------------------------------------------------------------------
+    # Colour assigned to Research Cluster 2 in the original thematicMap()
+    # -------------------------------------------------------------------------
+
+    cluster_colour =
+      data_bundle_research_clusters$
+        research_cluster_community_colours |>
+
+      dplyr::filter(
+        research_cluster == 2
+      ) |>
+
+      dplyr::distinct(
+        cluster_colour
+      ) |>
+
+      dplyr::pull(
+        cluster_colour
+      ) |>
+
+      dplyr::first(),
+
+
+    # -------------------------------------------------------------------------
+    # Colours assigned to the communities within Research Cluster 2
+    # -------------------------------------------------------------------------
+
+    community_colours =
+      data_bundle_research_clusters$
+        research_cluster_community_colours |>
+
+      dplyr::filter(
+        research_cluster == 2
+      ) |>
+
+      dplyr::select(
+        community,
+        community_colour
+      ) |>
+
+      dplyr::arrange(
+        community
+      )
+
+  )
+```
+
+## Research Cluster 2 Keyword Network
+
+Selecting a keyword or a community will provide an opportunity to explore the keyword communities within Research Cluster 2 in more detail.
+
+```{r}
+#| include: false
+
+library(igraph)
+library(visNetwork)
+library(scales)
+library(dplyr)
+library(tibble)
+
+create_cluster_network <-
+  function(
+    research_cluster_id,
+    data_bundle = data_bundle_research_clusters,
+    height = "900px"
+  ) {
+
+    cluster_name <-
+      paste0(
+        "cluster_",
+        research_cluster_id
+      )
+
+    if (
+      !cluster_name %in%
+        names(data_bundle$research_cluster_networks)
+    ) {
+      stop(
+        paste0(
+          "Research Cluster ",
+          research_cluster_id,
+          " was not found."
+        )
+      )
+    }
+
+    # Extract the networkPlot() object for this research cluster
+    cluster_network <-
+      data_bundle$
+        research_cluster_networks[[cluster_name]]
+
+    # Extract the igraph network
+    g_cluster <-
+      cluster_network$graph
+
+
+    # =========================================================================
+    # COMMUNITY MEMBERSHIP
+    # =========================================================================
+    #
+    # bibliometrix calls these groups "cluster" in cluster_res.
+    # In this analysis they are communities within the research cluster.
+
+    community_results <-
+      cluster_network$cluster_res |>
+      tibble::as_tibble() |>
+      dplyr::rename(
+        community = cluster
+      )
+
+    community_values <-
+      community_results$community[
+        match(
+          igraph::V(g_cluster)$name,
+          community_results$vertex
+        )
+      ]
+
+    if (anyNA(community_values)) {
+      stop(
+        paste0(
+          "One or more vertices in Research Cluster ",
+          research_cluster_id,
+          " could not be matched to a community."
+        )
+      )
+    }
+
+    community_select <-
+      paste(
+        "Community",
+        community_values
+      )
+
+
+    # =========================================================================
+    # LAYOUT
+    # =========================================================================
+
+    original_layout <-
+      igraph::graph_attr(
+        g_cluster,
+        "layout"
+      )
+
+    if (
+      is.null(original_layout) ||
+      nrow(original_layout) != igraph::vcount(g_cluster)
+    ) {
+
+      set.seed(
+        1234 + research_cluster_id
+      )
+
+      original_layout <-
+        igraph::layout_with_fr(
+          g_cluster,
+          weights =
+            if (
+              "weight" %in%
+                igraph::edge_attr_names(g_cluster)
+            ) {
+              igraph::E(g_cluster)$weight
+            } else {
+              NULL
+            }
+        )
+    }
+
+    x_coords <-
+      scales::rescale(
+        original_layout[, 1],
+        to = c(-2000, 2000)
+      )
+
+    y_coords <-
+      scales::rescale(
+        original_layout[, 2],
+        to = c(2000, -2000)
+      )
+
+
+    # =========================================================================
+    # NODE LOOKUP
+    # =========================================================================
+
+    node_lookup <-
+      tibble::tibble(
+        id =
+          seq_len(
+            igraph::vcount(g_cluster)
+          ),
+
+        keyword =
+          igraph::V(g_cluster)$name
+      )
+
+
+    # =========================================================================
+    # NODE COLOURS
+    # =========================================================================
+
+    if (
+      "color" %in%
+        igraph::vertex_attr_names(g_cluster)
+    ) {
+
+      node_colours <-
+        as.character(
+          igraph::V(g_cluster)$color
+        )
+
+    } else {
+
+      node_colours <-
+        rep(
+          "#808080",
+          igraph::vcount(g_cluster)
+        )
+    }
+
+    node_colours[
+      is.na(node_colours) |
+        node_colours == ""
+    ] <-
+      "#808080"
+
+
+    # =========================================================================
+    # PAGERANK WITHIN THE RESEARCH CLUSTER
+    # =========================================================================
+
+    page_rank_values <-
+      igraph::page_rank(
+        g_cluster,
+        directed = FALSE,
+        weights =
+          if (
+            "weight" %in%
+              igraph::edge_attr_names(g_cluster)
+          ) {
+            igraph::E(g_cluster)$weight
+          } else {
+            NULL
+          }
+      )$vector
+
+    page_rank_values <-
+      as.numeric(
+        page_rank_values[
+          match(
+            igraph::V(g_cluster)$name,
+            names(page_rank_values)
+          )
+        ]
+      )
+
+    page_rank_values[
+      !is.finite(page_rank_values)
+    ] <-
+      0
+
+
+    # =========================================================================
+    # NODE TABLE
+    # =========================================================================
+
+    nodes <-
+      data.frame(
+        id =
+          node_lookup$id,
+
+        label =
+          node_lookup$keyword,
+
+        community_select =
+          community_select,
+
+        x =
+          x_coords,
+
+        y =
+          y_coords,
+
+        value =
+          page_rank_values,
+
+        color.background =
+          node_colours,
+
+        color.border =
+          node_colours,
+
+        color.highlight.background =
+          "#FFD54F",
+
+        color.highlight.border =
+          "#000000",
+
+        borderWidth =
+          0.5,
+
+        borderWidthSelected =
+          6,
+
+        stringsAsFactors =
+          FALSE
+      )
+
+
+    # =========================================================================
+    # EDGE TABLE
+    # =========================================================================
+
+    edge_data <-
+      igraph::as_data_frame(
+        g_cluster,
+        what = "edges"
+      )
+
+    edges <-
+      data.frame(
+        from =
+          match(
+            edge_data$from,
+            node_lookup$keyword
+          ),
+
+        to =
+          match(
+            edge_data$to,
+            node_lookup$keyword
+          ),
+
+        stringsAsFactors =
+          FALSE
+      )
+
+    stopifnot(
+      !anyNA(edges$from),
+      !anyNA(edges$to)
+    )
+
+
+    # =========================================================================
+    # INTERACTIVE NETWORK
+    # =========================================================================
+
+    network_interactive <-
+      visNetwork::visNetwork(
+        nodes = nodes,
+        edges = edges,
+        width = "100%",
+        height = height
+      ) |>
+
+      visNetwork::visNodes(
+        shape = "dot",
+
+        scaling =
+          list(
+            min = 6,
+            max = 40
+          ),
+
+        labelHighlightBold =
+          TRUE
+      ) |>
+
+      visNetwork::visEdges(
+        color =
+          list(
+            color =
+              "rgba(150,150,150,0.25)",
+
+            highlight =
+              "#222222",
+
+            hover =
+              "#222222"
+          ),
+
+        width =
+          0.5,
+
+        selectionWidth =
+          3,
+
+        smooth =
+          FALSE
+      ) |>
+
+      visNetwork::visPhysics(
+        enabled = FALSE
+      ) |>
+
+      visNetwork::visInteraction(
+        dragNodes = TRUE,
+        dragView = TRUE,
+        zoomView = TRUE,
+        hideEdgesOnDrag = TRUE,
+        hideEdgesOnZoom = TRUE,
+        selectConnectedEdges = TRUE,
+        navigationButtons = TRUE,
+        hover = FALSE
+      ) |>
+
+      visNetwork::visOptions(
+
+        highlightNearest =
+          list(
+            enabled = TRUE,
+            degree = 1,
+            hover = FALSE,
+            algorithm = "all",
+            hideColor = "rgba(200,200,200,0.08)",
+            labelOnly = FALSE
+          ),
+
+        nodesIdSelection =
+          list(
+            enabled = TRUE,
+            useLabels = TRUE,
+            main = "Find a keyword",
+            style = "width: 350px; height: 30px;"
+          ),
+
+        selectedBy =
+          list(
+            variable = "community_select",
+            main = "Highlight a community",
+            multiple = FALSE,
+            hideColor = "rgba(200,200,200,0.08)",
+            style = "width: 250px; height: 30px;"
+          )
+      ) |>
+
+      visNetwork::visEvents(
+        click = "
+          function(properties) {
+
+            if (
+              !properties.nodes ||
+              properties.nodes.length !== 1
+            ) {
+              return;
+            }
+
+            var selectedNode =
+              properties.nodes[0];
+
+            var neighbours =
+              this.getConnectedNodes(
+                selectedNode
+              );
+
+            var neighbourhood =
+              [selectedNode].concat(
+                neighbours
+              );
+
+            this.fit({
+              nodes: neighbourhood,
+              maxZoomLevel: 1.5,
+              animation: {
+                duration: 500,
+                easingFunction: 'easeInOutQuad'
+              }
+            });
+          }
+        "
+      )
+
+    return(
+      network_interactive
+    )
+  }
+```
+
+```{r}
+#| echo: false
+#| warning: false
+#| message: false
+
+create_cluster_network(
+  research_cluster_id = 2
+)
+```
+
+## Research Community Word Clouds
+
+One method of exploring the substantive content of the smaller research communities within each of the 8 Research Clusters is through a word cloud. Below, keywords are sized and coloured by PageRank calculated within each community (included in parentheses after each keyword)[^1]. This means PageRank measures how structurally central a keyword is to a particular community, taking into account both its connections to other keywords in the community and the centrality of those connected terms. The largest and darkest words can be read as the community’s organizing vocabulary.. For convenience, the colour of the word clouds corresponds to the colour of the community found in Research Cluster 2 Keyword Network (above). For the sake of clarity, only the 50 most central keywords from each community are captured in the word clouds. In some cases, research communities contained fewer than 50 keywords.
+
+[^1]: PageRank is a measure of node centrality that provides a higher score to a keyword when it is connected not just to many other keywords, but to keywords that are themselves well connected.
+
+```{r}
+#| echo: false
+#| results: asis
+
+community_id <- 1
+
+community_colour <-
+  data_bundle_research_cluster_two$
+    community_colours |>
+  dplyr::filter(
+    community == community_id
+  ) |>
+  dplyr::pull(
+    community_colour
+  ) |>
+  dplyr::first()
+
+cat(
+  paste0(
+    '<h2 style="color: ',
+    community_colour,
+    ';">Research Community ',
+    community_id,
+    '</h2>'
+  )
+)
+```
+
+This community can reasonably be characterized as focusing on gender, social identity, discrimination, and social difference, with an emphasis on how these processes operate in institutional and cultural contexts. The most structurally central terms include gender (0.009), women (0.009), Canada (0.008), United States (0.007), attitudes (0.006), discrimination (0.006), identity (0.005), men (0.005), culture (0.005), and gender-differences (0.005). Together, these terms indicate a literature organized around gendered and other forms of social differentiation, their relationship to identity, and the attitudes and discriminatory processes associated with them.
+
+```{r, clustertwocom1, fig.cap="Keyword Terms: Community 1, Research Cluster 2"}
+#| echo: false
+#| warning: false
+#| fig-width: 12
+#| fig-height: 8
+#| out-width: "100%"
+
+data_bundle_research_cluster_two$wordcloud_plots$community_1
+```
+
+A second strand concerns the institutional and social settings in which these differences are experienced. Education (0.005), power (0.005), stigma (0.005), participation (0.004), race (0.004), religion (0.004), employment (0.003), immigration (0.003), and language (0.003) suggest research on how identity and social difference are shaped through institutions, cultural contexts, and patterns of inclusion and exclusion. The prominence of Canada and United States also indicates that geographic context is an important feature of the community.
+
+The community also contains a substantial sexuality-related component. Sex (0.004), sexual orientation (0.003), gay men (0.003), attractiveness (0.003), fertility (0.002), and intersectionality (0.003) extend the focus beyond gender alone toward sexuality and overlapping forms of social identity.
+
+Proposed title: Gender, social identity, discrimination, and inequality
+
+```{r}
+#| echo: false
+#| results: asis
+
+community_id <- 2
+
+community_colour <-
+  data_bundle_research_cluster_two$
+    community_colours |>
+  dplyr::filter(
+    community == community_id
+  ) |>
+  dplyr::pull(
+    community_colour
+  ) |>
+  dplyr::first()
+
+cat(
+  paste0(
+    '<h2 style="color: ',
+    community_colour,
+    ';">Research Community ',
+    community_id,
+    '</h2>'
+  )
+)
+```
+
+The PageRank structure suggests that this community is primarily organized around research on personnel assessment and selection, particularly the processes through which organizations evaluate job applicants and the ways applicants respond to those processes. The strongest evidence comes from the most structurally central terms: behavior (.048), selection (.047), personality (.047), perceptions (.044), model (.043), and validity (.0390). These are joined by a more specific set of highly central terms—impression management (.039), employment interview (.037), ratings (.035), faking (.034), applicant reactions (.034), and self-presentation (.032)—that locate the cluster more specifically within the study of employee selection, interviewing, and applicant behaviour.
+
+```{r, clustertwocom2, fig.cap="Keyword Terms: Community 2, Research Cluster 2"}
+#| echo: false
+#| warning: false
+#| fig-width: 12
+#| fig-height: 8
+#| out-width: "100%"
+
+data_bundle_research_cluster_two$wordcloud_plots$community_2
+```
+
+A second group of terms indicates that the community is concerned not simply with selection procedures themselves, but with their measurement properties and consequences. Job-performance, reliability, personnel-selection, ability, individual-differences, organizational justice, accuracy, decisions, bias, and tests point toward questions about whether selection methods predict performance, measure applicants reliably, and produce fair or accurate judgments. Meanwhile, technology, asynchronous video interviews, social media, and artificial intelligence suggest a strand concerned with technologically mediated or newer forms of recruitment and assessment.
+
+Proposed title: personnel selection, assessment, and employment interviewing
+
+```{r}
+#| echo: false
+#| results: asis
+
+community_id <- 3
+
+community_colour <-
+  data_bundle_research_cluster_two$
+    community_colours |>
+  dplyr::filter(
+    community == community_id
+  ) |>
+  dplyr::pull(
+    community_colour
+  ) |>
+  dplyr::first()
+
+cat(
+  paste0(
+    '<h2 style="color: ',
+    community_colour,
+    ';">Research Community ',
+    community_id,
+    '</h2>'
+  )
+)
+```
+
+This community is best characterized as a research area concerned with corporate governance, financial reporting, and firm performance. The most structurally central terms include impact (0.007), performance (0.007), information (0.005), quality (0.005), market (0.005), and corporate governance (0.005). Together with earnings (0.004), firm performance (0.004), firms (0.004), and firm (0.004), these terms indicate a literature organized around explaining corporate outcomes and the informational and governance conditions associated with them.
+
+```{r, clustertwocom3, fig.cap="Keyword Terms: Community 3, Research Cluster 2"}
+#| echo: false
+#| warning: false
+#| fig-width: 12
+#| fig-height: 8
+#| out-width: "100%"
+
+data_bundle_research_cluster_two$wordcloud_plots$community_3
+```
+
+A second strand concerns financial reporting and governance mechanisms. Earnings (0.004), disclosure (0.004), earnings management (0.004), agency costs (0.004), ownership (0.004), and compensation (0.004) point to research on the production and quality of corporate information, managerial incentives, and the structures through which firms are governed. These terms suggest recurring attention to how reporting practices and governance arrangements shape firm behaviour and performance.
+
+The community also has a clear corporate finance and market dimension. Risk (0.004), investment (0.003), returns (0.003), and equity (0.003) connect governance and disclosure questions to financial-market outcomes. China (0.003), environment (0.003), and corporate social-responsibility (0.003) appear as important contextual or secondary strands.
+
+Proposed title: Corporate governance, financial reporting, and firm performance
+
+```{r}
+#| echo: false
+#| results: asis
+
+community_id <- 4
+
+community_colour <-
+  data_bundle_research_cluster_two$
+    community_colours |>
+  dplyr::filter(
+    community == community_id
+  ) |>
+  dplyr::pull(
+    community_colour
+  ) |>
+  dplyr::first()
+
+cat(
+  paste0(
+    '<h2 style="color: ',
+    community_colour,
+    ';">Research Community ',
+    community_id,
+    '</h2>'
+  )
+)
+```
+
+This community can be characterized as being focused on environmental governance, sustainability, and climate adaptation. The most structurally central terms—management (0.011), governance (0.007), sustainability (0.007), adaptation (0.007), framework (0.007), policy (0.006), systems (0.006), and knowledge (0.006)—indicate a literature concerned with how environmental problems are organized, governed, and managed.
+
+```{r, clustertwocom4, fig.cap="Keyword Terms: Community 4, Research Cluster 2"}
+#| echo: false
+#| warning: false
+#| fig-width: 12
+#| fig-height: 8
+#| out-width: "100%"
+
+data_bundle_research_cluster_two$wordcloud_plots$community_4
+```
+
+The community also has a clear institutional and implementation-oriented dimension. Organizations (0.005), politics (0.005), implementation (0.005), comanagement (0.004), and agency (0.004) suggest attention to the actors, institutions, and arrangements through which environmental policies and strategies are carried out. At the same time, science (0.005), uncertainty (0.005), scale (0.005), resilience (0.005), and systems (0.006) indicate a systems-oriented literature concerned with complexity, knowledge, and decision-making under changing environmental conditions.
+
+A secondary strand connects these environmental and governance questions to human populations and livelihoods. Migration (0.005), poverty (0.005), livelihoods (0.004), Bangladesh (0.004), and fisheries (0.004) suggest attention to the social consequences of environmental change and resource governance, particularly in contexts of vulnerability.
+
+Proposed title: Environmental governance, sustainability, and climate adaptation
+
+```{r}
+#| echo: false
+#| results: asis
+
+community_id <- 5
+
+community_colour <-
+  data_bundle_research_cluster_two$
+    community_colours |>
+  dplyr::filter(
+    community == community_id
+  ) |>
+  dplyr::pull(
+    community_colour
+  ) |>
+  dplyr::first()
+
+cat(
+  paste0(
+    '<h2 style="color: ',
+    community_colour,
+    ';">Research Community ',
+    community_id,
+    '</h2>'
+  )
+)
+```
+
+This community is best characterized as workplace health, well-being, and organizational behaviour. The most structurally central terms—work (0.008), health (0.007), stress (0.007), workplace (0.006), mental health (0.006), support (0.006), and well-being (0.005)—point to research concerned with the relationship between working conditions and employee psychological and health outcomes. Burnout (0.005) and depression (0.005) further indicate a focus on adverse consequences of work and workplace experiences.
+
+```{r, clustertwocom5, fig.cap="Keyword Terms: Community 5, Research Cluster 2"}
+#| echo: false
+#| warning: false
+#| fig-width: 12
+#| fig-height: 8
+#| out-width: "100%"
+
+data_bundle_research_cluster_two$wordcloud_plots$community_5
+```
+
+A second strand concerns leadership and organizational relationships. Transformational leadership (0.006), leadership (0.005), satisfaction (0.005), commitment (0.005), social support (0.005), resources (0.005), and trust (0.004) suggest research examining how leadership, organizational resources, and interpersonal support relate to employee attitudes and well-being. The presence of incivility (0.005) and abusive supervision (0.004) provides the corresponding negative side of these workplace relationships, linking supervisory and interpersonal conditions to employee outcomes.
+
+The community also has an applied dimension. Intervention (0.005), training (0.004), and prevention (0.004) indicate research concerned with improving workplace conditions and mitigating harmful outcomes.
+
+Proposed title: Workplace health, well-being, and organizational behaviour
+
+## If you've made it this far...
+
+I am curious about the degree to this data and interpretation maps on to your own understanding of your scholarship and how you understand the University. Happy to chat.
