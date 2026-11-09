@@ -10,4 +10,4 @@ papers/
 .RData
 .Rproj.user/
 
-_site/
+_site/thematic_map_raw_runs_nostemming.rds

@@ -2,10 +2,11 @@ project:
   type: website
   output-dir: docs
   render:
-  - index.qmd
-  - full_keyword_network.qmd
-  - research_cluster_two.qmd
-  - about.qmd
+    - index.qmd
+    - full_keyword_network.qmd
+    - research_cluster_two.qmd
+    - cluster_reports/cluster_report_1.qmd
+    - about.qmd
 
 website:
   title: "The SMU-affiliated Research Corpus"
@@ -17,9 +18,9 @@ website:
       - href: index.qmd
         text: Start Here
       - href: full_keyword_network.qmd
-        text: The SMU-affililated Corpus
-      - href: research_cluster_two.qmd
-        text: Research Cluster Two
+        text: The SMU-affiliated Corpus
+      - href: cluster_reports/cluster_report_1.qmd
+        text: Research Cluster 1
 
 format:
   html:
@@ -35,5 +36,3 @@ execute:
   echo: false
   warning: false
   message: false
-
-
