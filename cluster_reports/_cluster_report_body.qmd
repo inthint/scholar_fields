@@ -153,20 +153,32 @@ if (anyDuplicated(community_titles$community_number)) {
 # PREPARE THE INTERACTIVE KEYWORD NETWORK
 # =============================================================================
 
-# I match each keyword to its community using the saved subgraphs.
-# I use community numbers in the selector so it still matches the report
-# sections when I change a display title in the CSV.
-membership <- map_dfr(
-  community_numbers,
-  function(number) {
-    tibble(
-      keyword = igraph::V(
-        cluster_bundle$communities[[number]]$graph
-      )$name,
-      community_select = paste("Community", number)
-    )
+# I use the same title lookup for the network dropdown and report headings.
+community_display_title <- function(number) {
+  community <- cluster_bundle$communities[[number]]
+  title_row <- match(
+    as.character(number),
+    trimws(as.character(community_titles$community_number))
+  )
+  edited_title <- trimws(community_titles$title[title_row])
+
+  # I use the saved label when the CSV has no edited title.
+  if (is.na(edited_title) || !nzchar(edited_title)) {
+    return(as.character(community$community_label))
   }
-)
+
+  edited_title
+}
+
+# I give each keyword the display title of its saved community.
+membership <- purrr::map_dfr(community_numbers, function(number) {
+  community <- cluster_bundle$communities[[number]]
+
+  tibble::tibble(
+    keyword = igraph::V(community$graph)$name,
+    community_select = community_display_title(number)
+  )
+})
 
 graph <- cluster_bundle$graph
 vertex_names <- igraph::V(graph)$name

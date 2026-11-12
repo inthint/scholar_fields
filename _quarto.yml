@@ -5,6 +5,7 @@ project:
     - index.qmd
     - full_keyword_network.qmd
     - cluster_reports/cluster_report_1.qmd
+    - cluster_reports/cluster_report_2.qmd
     - cluster_reports/cluster_report_7.qmd
     - about.qmd
 
@@ -21,6 +22,8 @@ website:
         text: The SMU-affiliated Corpus
       - href: cluster_reports/cluster_report_1.qmd
         text: Research Cluster 1
+      - href: cluster_reports/cluster_report_2.qmd
+        text: Research Cluster 2
       - href: cluster_reports/cluster_report_7.qmd
         text: Research Cluster 7
 

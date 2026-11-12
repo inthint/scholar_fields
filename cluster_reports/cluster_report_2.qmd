@@ -1,0 +1,19 @@
+---
+title: "Work, governance, and well-being"
+subtitle: "Research Cluster 2"
+format:
+  html:
+    page-layout: full
+    toc: false
+    embed-resources: true
+params:
+  cluster_number: 2
+  bundle_path: "../data_clean/analysis_bundles/community_bundles.rds"
+  analysis_directory: "../data_clean/cluster_report_analysis"
+execute:
+  echo: false
+  message: false
+bibliography: "../references.bib"
+---
+
+{{< include _cluster_report_body.qmd >}}
