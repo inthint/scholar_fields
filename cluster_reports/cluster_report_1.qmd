@@ -1,9 +1,10 @@
 ---
-title: "Research Cluster 1"
-subtitle: "Evolution"
+title: "Evolution"
+subtitle: "Research Cluster 1"
 format:
   html:
-    toc: true
+    page-layout: full
+    toc: false
     embed-resources: true
 params:
   cluster_number: 1
@@ -28,6 +29,12 @@ h1, h2, h3 {
 .cloud-figure .quarto-figure {
   margin-top: 0;
   margin-bottom: 0;
+}
+
+/* I put the border around the network canvas. */
+.vis-network {
+  border: 1px solid #808080;
+  box-sizing: border-box;
 }
 </style>
 ```
@@ -309,7 +316,7 @@ network_interactive <- visNetwork::visNetwork(
   )
 ```
 
-# Research Cluster `r cluster_number`: `r cluster_bundle$research_cluster`
+# 
 
 ```{r}
 #| label: cluster-narrative
@@ -335,6 +342,7 @@ cat(
 
 ```{r}
 #| label: interactive-network
+#| echo: false
 
 # I display the keyword network after the cluster overview.
 network_interactive
@@ -472,4 +480,234 @@ for (community_number in community_numbers) {
     sep = "\n"
   )
 }
+```
+
+## Most cited publications by community
+
+Select one of the communities above to populate the table. The table shows up to five publications per selected research community, arranged by highest Total Citation count within the research community under consideration. Under Membership vector column headers indicate abbreviated community research labels. Each row sum totals 1.0. Values of 1 indicate maximal cluster affiliation; distributed values indicate multithematic papers whose affiliation reaches into more than one research community [@aria2026; @aria2026a]. TCpY = Total Citations per Year.
+
+```{r}
+#| label: cluster-publication-lookup
+#| echo: false
+
+# I build the code key from this research cluster's saved community numbers.
+community_key <- cluster_bundle$community_lookup |>
+  dplyr::distinct(community_number, community_label) |>
+  dplyr::arrange(community_number) |>
+  dplyr::mutate(Code = paste0("C", community_number))
+
+# I use the parent-cluster table so the widget covers all its communities.
+documents <- cluster_bundle$documentToCommunities
+
+# I give each available membership column its short display code.
+membership_key <- community_key |>
+  dplyr::filter(community_label %in% names(documents))
+
+membership_names <- stats::setNames(
+  membership_key$community_label,
+  membership_key$Code
+)
+
+# I select up to five publications per assigned community by total citations.
+# I break citation ties by publication year, then by short reference.
+top_cited <- documents |>
+  dplyr::ungroup() |>
+  dplyr::filter(
+    Assigned_cluster %in% community_key$community_label,
+    !is.na(TC)
+  ) |>
+  dplyr::arrange(community_number, dplyr::desc(TC), dplyr::desc(PY), SR) |>
+  dplyr::group_by(Assigned_cluster) |>
+  dplyr::slice_head(n = 5) |>
+  dplyr::ungroup() |>
+  dplyr::mutate(
+    # I use a factor so the community filter offers a list of codes.
+    `Assigned community` = factor(
+      community_key$Code[
+        match(Assigned_cluster, community_key$community_label)
+      ],
+      levels = community_key$Code
+    )
+  ) |>
+  dplyr::select(
+    `Assigned community`,
+    `Publication title` = TI,
+    Year = PY,
+    TC,
+    TCpY,
+    dplyr::all_of(membership_names)
+  ) |> 
+	  dplyr::mutate(
+    `Publication title` = dplyr::if_else(
+      `Publication title` == toupper(`Publication title`),
+      tools::toTitleCase(tolower(`Publication title`)),
+      `Publication title`
+    )
+  )
+
+# I display the code key once, above the searchable table.
+display_key <- community_key |>
+  dplyr::select(Code, `Community label` = community_label)
+```
+
+```{r}
+#| label: cluster-publication-widget
+#| echo: false
+
+tags <- htmltools::tags
+
+# I match my edited titles to the saved community numbers.
+title_rows <- match(
+  as.character(community_key$community_number),
+  as.character(community_titles$community_number)
+)
+
+# I use the full title in the dropdown and the short title in the header.
+# I fall back to the saved label or community code when a title is blank.
+dropdown_titles <- dplyr::coalesce(
+  dplyr::na_if(trimws(community_titles$title[title_rows]), ""),
+  as.character(community_key$community_label)
+)
+
+short_titles <- dplyr::coalesce(
+  dplyr::na_if(trimws(community_titles$short_title[title_rows]), ""),
+  as.character(community_key$Code)
+)
+
+membership_codes <- membership_key$Code
+membership_headers <- short_titles[
+  match(membership_codes, community_key$Code)
+]
+
+# I keep the assigned code for grouping but omit it from the visible table.
+publication_columns <- c("Publication title", "Year", "TC", "TCpY")
+visible_columns <- c(publication_columns, membership_codes)
+
+# I offer dropdown choices only for communities with publication rows.
+assigned_codes <- as.character(top_cited[["Assigned community"]])
+available <- which(community_key$Code %in% assigned_codes)
+
+dropdown_options <- lapply(available, function(i) {
+  tags$option(value = community_key$Code[[i]], dropdown_titles[[i]])
+})
+
+# I create one hidden table body per community.
+# I keep the citation order already established in top_cited.
+table_bodies <- lapply(available, function(i) {
+  code <- community_key$Code[[i]]
+  rows <- top_cited[which(assigned_codes == code), visible_columns, drop = FALSE]
+
+  tags$tbody(
+    `data-community` = code,
+    hidden = "hidden",
+    lapply(seq_len(nrow(rows)), function(j) {
+      tags$tr(lapply(visible_columns, function(column) {
+        value <- rows[[column]][[j]]
+
+        # I show blank cells for missing values and round decimal measures.
+        if (is.na(value)) {
+          value <- ""
+        } else if (column %in% c("TCpY", membership_codes)) {
+          value <- formatC(value, format = "f", digits = 1)
+        }
+
+        tags$td(as.character(value))
+      }))
+    })
+  )
+})
+
+# I give the four publication columns two-row headers and group the
+# membership headings under one spanning cell.
+table_header <- tags$thead(
+  tags$tr(
+    lapply(publication_columns, function(label) {
+      tags$th(rowspan = 2L, scope = "col", label)
+    }),
+    tags$th(
+      colspan = length(membership_codes),
+      scope = "colgroup",
+      style = "text-align: center;",
+      "Membership vector"
+    )
+  ),
+  tags$tr(lapply(membership_headers, function(label) {
+    tags$th(scope = "col", label)
+  }))
+)
+
+tags$div(
+  class = "community-publication-lookup",
+# I replace the existing tags$style(...) inside the lookup's outer div
+# with this version. I keep the rule that hides unselected communities.
+tags$style(htmltools::HTML("
+  /* I keep unselected community rows hidden. */
+  .community-publication-lookup tbody[hidden] {
+    display: none !important;
+  }
+
+  /* I set the font size and keep the table within the page width. */
+  .community-publication-lookup table {
+    width: 100%;
+    table-layout: fixed;
+    font-size: 0.7rem;
+  }
+
+  /* I let publication titles and other body text wrap. */
+  .community-publication-lookup th,
+  .community-publication-lookup td {
+    white-space: normal;
+    overflow-wrap: anywhere;
+    padding: 0.25rem;
+    vertical-align: top;
+  }
+
+  /* I override the wrapping rule for headers only. */
+  .community-publication-lookup thead th {
+    white-space: nowrap;
+    overflow-wrap: normal;
+  }
+
+  /* I reserve 25% of the width for publication titles. */
+  .community-publication-lookup thead tr:first-child > th:first-child {
+    width: 25%;
+  }
+
+  /* I reserve 6% each for Year, TC, and TCpY. */
+  .community-publication-lookup thead tr:first-child > th:nth-child(2),
+  .community-publication-lookup thead tr:first-child > th:nth-child(3),
+  .community-publication-lookup thead tr:first-child > th:nth-child(4) {
+    width: 6%;
+  }
+")),
+  tags$label(
+    "Community: ",
+    tags$select(
+      tags$option(value = "", "Select a community"),
+      dropdown_options
+    )
+  ),
+  tags$div(
+    style = "overflow-x: auto; margin-top: 0.75rem;",
+    tags$table(class = "table", table_header, table_bodies)
+  ),
+  tags$script(htmltools::HTML("
+    (() => {
+      // I scope the dropdown to this table.
+      const lookup = document.currentScript.parentElement;
+      const select = lookup.querySelector('select');
+      const bodies = lookup.querySelectorAll('tbody[data-community]');
+
+      // I show only the body with the selected community code.
+      function updateRows() {
+        bodies.forEach(body => {
+          body.hidden = body.dataset.community !== select.value;
+        });
+      }
+
+      select.addEventListener('change', updateRows);
+      updateRows();
+    })();
+  "))
+)
 ```

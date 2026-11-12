@@ -297,13 +297,13 @@ Nodes with the same colour belong to the same intellectual cluster.[^1] Node siz
 
 The tables provide complementary ways of examining the same network.
 
--   The Keyword neighbours table allows a reader to select an exact keyword and retrieve all of the keywords directly connected to it, ordered by the strength of their co-occurrence. This value is a measure of how often the focal keyword and a particular neighbour appear together in the publication metadata. For example, searching for the keyword "health" in this table reveals that "health" and "canada" co-occur 9 times in this dataset.
+- The Keyword neighbours table allows a reader to select an exact keyword and retrieve all of the keywords directly connected to it, ordered by the strength of their co-occurrence. This value is a measure of how often the focal keyword and a particular neighbour appear together in the publication metadata. For example, searching for the keyword "health" in this table reveals that "health" and "canada" co-occur 9 times in this dataset.
 
--   The Cluster profiles table provides a compact overview of the vocabulary associated with each intellectual cluster.
+- The Cluster profiles table provides a compact overview of the vocabulary associated with each intellectual cluster.
 
--   The Cluster vocabulary table lists every keyword in the network by cluster, allowing readers to move beyond the most prominent keywords and examine more specialized areas that may be difficult to identify visually.
+- The Cluster vocabulary table lists every keyword in the network by cluster, allowing readers to move beyond the most prominent keywords and examine more specialized areas that may be difficult to identify visually.
 
--   The Author lookup table will return the titles of publications of an author. This presented partly as a means of allowing those interested to think through and assess the coverage of the WoS database.
+- The Author lookup table will return the titles of publications of an author. This presented partly as a means of allowing those interested to think through and assess the coverage of the WoS database.
 
 The Cluster profiles and Cluster vocabulary look up tables provide insight into the structure of these clusters. The tables report each keyword's rank and degree.[^2]
 

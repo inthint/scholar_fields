@@ -1,0 +1,713 @@
+---
+title: "Chemistry"
+subtitle: "Research Cluster 7"
+format:
+  html:
+    page-layout: full
+    toc: false
+    embed-resources: true
+params:
+  cluster_number: 7
+  bundle_path: "../data_clean/analysis_bundles/community_bundles.rds"
+  analysis_directory: "../data_clean/cluster_report_analysis"
+execute:
+  echo: false
+  message: false
+bibliography: "../references.bib"
+---
+
+<!-- I keep the headings black and reduce the space around word-cloud figures. -->
+
+```{=html}
+<style>
+h1, h2, h3 {
+  color: #000000;
+}
+
+.cloud-figure,
+.cloud-figure figure,
+.cloud-figure .quarto-figure {
+  margin-top: 0;
+  margin-bottom: 0;
+}
+
+/* I put the border around the network canvas. */
+.vis-network {
+  border: 1px solid #808080;
+  box-sizing: border-box;
+}
+</style>
+```
+
+```{r}
+#| label: setup
+#| include: false
+
+library(tidyverse)
+library(igraph)
+library(visNetwork)
+library(ggwordcloud)
+
+# =============================================================================
+# LOAD THE SELECTED PRIMARY CLUSTER
+# =============================================================================
+
+# I load the results saved by get_community_bundles.R. This report reads
+# the analysis from disk; it does not rebuild the keyword networks.
+community_bundles <- readRDS(params$bundle_path)
+
+# I select the primary cluster using the YAML parameter. The YAML title
+# and subtitle are written for Cluster 1; I update them if I reuse this
+# file for another cluster.
+cluster_number <- as.integer(params$cluster_number)
+cluster_bundle <- community_bundles[[cluster_number]]
+
+# I use the saved community numbers because they are list indexes within
+# this primary cluster. I do not assume they form an unbroken sequence.
+community_numbers <- cluster_bundle$community_numbers
+
+# I define the size transformation here so a saved cloud does not depend
+# on a variable from the R session that built the bundle.
+report_size_trans <- scales::trans_new(
+  name = "pagerank_power",
+  transform = function(x) x^(1 / 0.7),
+  inverse = function(x) x^0.7,
+  domain = c(0, Inf)
+)
+
+# =============================================================================
+# PREPARE NARRATIVE FILES AND COMMUNITY TITLES
+# =============================================================================
+
+# I keep this cluster's writing separate from the report template.
+# For Cluster 1, the files are in:
+#   data_clean/cluster_report_analysis/cluster_1/
+#
+# I write the cluster overview in overview.md and each community's
+# analysis in community_NUMBER.md. The report knits these files, so I
+# can include inline R and R chunks alongside my paragraphs.
+analysis_folder <- file.path(
+  params$analysis_directory,
+  paste0("cluster_", cluster_number)
+)
+
+dir.create(
+  analysis_folder,
+  recursive = TRUE,
+  showWarnings = FALSE
+)
+
+narrative_files <- file.path(
+  analysis_folder,
+  c("overview.md", paste0("community_", community_numbers, ".md"))
+)
+
+# I create missing files as empty documents. I leave existing text alone.
+for (path in narrative_files) {
+  if (!file.exists(path)) {
+    writeLines(character(), path)
+  }
+}
+
+# I keep the custom report headings in one CSV per primary cluster.
+# I edit only the title column. The original_label column reminds me
+# which saved community I am describing; it does not set membership.
+titles_path <- file.path(analysis_folder, "community_titles.csv")
+
+if (!file.exists(titles_path)) {
+  readr::write_csv(
+    tibble(
+      community_number = community_numbers,
+      original_label = map_chr(
+        community_numbers,
+        function(number) {
+          as.character(
+            cluster_bundle$communities[[number]]$community_label
+          )
+        }
+      ),
+      title = rep("", length(community_numbers))
+    ),
+    titles_path
+  )
+}
+
+# I read the CSV as text so the match uses community IDs as keys.
+# I leave empty titles as empty strings and trim them before use.
+community_titles <- readr::read_csv(
+  titles_path,
+  col_types = readr::cols(.default = readr::col_character()),
+  na = character(),
+  trim_ws = FALSE
+)
+
+required_title_columns <- c("community_number", "original_label", "title")
+
+if (!all(required_title_columns %in% names(community_titles))) {
+  stop(
+    "Keep the community_number, original_label, and title columns in ",
+    titles_path,
+    call. = FALSE
+  )
+}
+
+# I trim surrounding spaces before checking for duplicate IDs.
+# Each community needs at most one row in this cluster's title file.
+community_titles <- community_titles |>
+  mutate(
+    community_number = trimws(community_number),
+    title = trimws(title)
+  )
+
+if (anyDuplicated(community_titles$community_number)) {
+  stop(
+    "Use only one row per community number in ",
+    titles_path,
+    call. = FALSE
+  )
+}
+
+# =============================================================================
+# PREPARE THE INTERACTIVE KEYWORD NETWORK
+# =============================================================================
+
+# I match each keyword to its community using the saved subgraphs.
+# I use community numbers in the selector so it still matches the report
+# sections when I change a display title in the CSV.
+membership <- map_dfr(
+  community_numbers,
+  function(number) {
+    tibble(
+      keyword = igraph::V(
+        cluster_bundle$communities[[number]]$graph
+      )$name,
+      community_select = paste("Community", number)
+    )
+  }
+)
+
+graph <- cluster_bundle$graph
+vertex_names <- igraph::V(graph)$name
+coordinates <- cluster_bundle$layout
+
+# I retain the network's saved node colours and use grey for missing colours.
+colours <- as.character(igraph::V(graph)$color)
+colours[is.na(colours) | colours == ""] <- "#808080"
+
+# I size network nodes by PageRank across the primary-cluster graph.
+# The clouds use a separate PageRank measure calculated within each
+# community subgraph when the bundle was built.
+pagerank <- igraph::page_rank(
+  graph,
+  directed = FALSE,
+  weights = igraph::edge_attr(graph, "weight")
+)$vector
+
+# I retain the saved layout, rescale it for the widget, and reverse
+# the vertical coordinates for the browser's coordinate system.
+nodes <- data.frame(
+  id = seq_len(igraph::vcount(graph)),
+  label = vertex_names,
+  community_select = coalesce(
+    membership$community_select[
+      match(vertex_names, membership$keyword)
+    ],
+    "Outside returned communities"
+  ),
+  x = scales::rescale(coordinates[, 1], to = c(-2000, 2000)),
+  y = scales::rescale(coordinates[, 2], to = c(2000, -2000)),
+  value = as.numeric(
+    pagerank[match(vertex_names, names(pagerank))]
+  ),
+  color.background = colours,
+  color.border = colours,
+  color.highlight.background = "#FFD54F",
+  color.highlight.border = "#000000",
+  borderWidth = 0.5,
+  borderWidthSelected = 6
+)
+
+# I use numeric edge endpoints because the widget's node IDs are numeric.
+endpoints <- igraph::as_edgelist(graph, names = FALSE)
+
+edges <- data.frame(
+  from = endpoints[, 1],
+  to = endpoints[, 2]
+)
+
+# I turn off physics so the network opens with the saved layout.
+# Readers can still drag nodes, zoom, find keywords, and highlight communities.
+network_interactive <- visNetwork::visNetwork(
+  nodes,
+  edges,
+  width = "100%",
+  height = "900px"
+) |>
+  visNetwork::visNodes(
+    shape = "dot",
+    scaling = list(min = 6, max = 40),
+    labelHighlightBold = TRUE
+  ) |>
+  visNetwork::visEdges(
+    color = list(
+      color = "rgba(150,150,150,0.25)",
+      highlight = "#222222",
+      hover = "#222222"
+    ),
+    width = 0.5,
+    selectionWidth = 3,
+    smooth = FALSE
+  ) |>
+  visNetwork::visPhysics(enabled = FALSE) |>
+  visNetwork::visInteraction(
+    dragNodes = TRUE,
+    dragView = TRUE,
+    zoomView = TRUE,
+    hideEdgesOnDrag = TRUE,
+    hideEdgesOnZoom = TRUE,
+    selectConnectedEdges = TRUE,
+    navigationButtons = TRUE,
+    hover = FALSE
+  ) |>
+  visNetwork::visOptions(
+    highlightNearest = list(
+      enabled = TRUE,
+      degree = 1,
+      hover = FALSE,
+      algorithm = "all",
+      hideColor = "rgba(200,200,200,0.08)",
+      labelOnly = FALSE
+    ),
+    nodesIdSelection = list(
+      enabled = TRUE,
+      useLabels = TRUE,
+      main = "Find a keyword",
+      style = "width: 350px; height: 30px;"
+    ),
+    selectedBy = list(
+      variable = "community_select",
+      main = "Highlight a community",
+      multiple = FALSE,
+      hideColor = "rgba(200,200,200,0.08)",
+      style = "width: 250px; height: 30px;"
+    )
+  ) |>
+  visNetwork::visEvents(
+    click = "
+      function(properties) {
+        // I frame the clicked keyword and its immediate neighbours.
+        if (!properties.nodes || properties.nodes.length !== 1) {
+          return;
+        }
+
+        var selected = properties.nodes[0];
+        var neighbours = this.getConnectedNodes(selected);
+
+        this.fit({
+          nodes: [selected].concat(neighbours),
+          maxZoomLevel: 1.5,
+          animation: {
+            duration: 500,
+            easingFunction: 'easeInOutQuad'
+          }
+        });
+      }
+    "
+  )
+```
+
+# 
+
+```{r}
+#| label: cluster-narrative
+#| results: asis
+
+# I knit the overview in the report environment so its code can refer
+# to cluster_bundle. I render this .qmd rather than the .md file alone.
+overview_source <- readLines(
+  file.path(analysis_folder, "overview.md"),
+  encoding = "UTF-8",
+  warn = FALSE
+)
+
+cat(
+  knitr::knit_child(
+    text = overview_source,
+    envir = knitr::knit_global(),
+    quiet = TRUE
+  ),
+  sep = "\n"
+)
+```
+
+```{r}
+#| label: interactive-network
+#| echo: false
+
+# I display the keyword network after the cluster overview.
+network_interactive
+```
+
+```{r}
+#| label: community-content
+#| results: asis
+
+# I give each saved community a heading, a cloud, and its own narrative.
+# I use the same loop for every community, including those with blank
+# custom titles. I do not insert analysis prompts.
+for (community_number in community_numbers) {
+  community <- cluster_bundle$communities[[community_number]]
+
+  # I keep the saved label for indexing membership columns. For example,
+  # a saved label of "continental growth" identifies that exact column
+  # even when I give the community a different title on the website.
+  membership_column <- as.character(community$community_label)
+
+  # I look up the title by community number rather than CSV row position.
+  # The file belongs to this cluster, so I do not need a second cluster ID.
+  title_row <- match(
+    as.character(community_number),
+    community_titles$community_number
+  )
+
+  custom_title <- community_titles$title[title_row]
+
+  # I always define a display label. If the row is missing or its title
+  # is blank, I use the original label from the bundle.
+  display_label <- membership_column
+
+  if (!is.na(custom_title) && nzchar(custom_title)) {
+    display_label <- custom_title
+  }
+
+  # I escape the display title before putting it into the HTML report.
+  # I keep the section ID tied to the number so links survive title edits.
+  heading <- paste0(
+    "## Community ", community_number, ": ",
+    htmltools::htmlEscape(display_label),
+    " {#community-", community_number, "}"
+  )
+
+  # I give each narrative its own environment so its local objects do not
+  # replace those of the next community. The parent environment provides
+  # the packages and shared objects loaded by the report.
+  child_environment <- new.env(parent = knitr::knit_global())
+  child_environment$cluster_number <- cluster_number
+  child_environment$community_number <- community_number
+  child_environment$cluster_bundle <- cluster_bundle
+  child_environment$community <- community
+
+  # I pass the current community's tables directly from the saved bundle.
+  # documentToCommunities contains its assigned rows and membership columns.
+  # cluster_bundle$documentToCommunities covers the whole primary cluster.
+  # publications contains the source metadata for the current community.
+  child_environment$documentToCommunities <-
+    community[["documentToCommunities"]]
+  child_environment$documentToClusters <-
+    community[["documentToClusters"]]
+  child_environment$publications <- community[["publications"]]
+
+  # I expose both names so narrative code can choose the right one:
+  # membership_column for data selection, display_label for report text.
+  child_environment$membership_column <- membership_column
+  child_environment$display_label <- display_label
+
+  # I retain the saved cloud's vocabulary and community colours. I replace
+  # its size scale with the report's transformation and remove its title
+  # because the community heading already identifies the figure.
+  child_environment$current_cloud <- suppressMessages(
+    community$wordcloud_plot +
+      ggplot2::scale_size_area(
+        max_size = 55,
+        trans = report_size_trans,
+        guide = "none"
+      ) +
+      ggplot2::labs(
+        title = NULL,
+        subtitle = NULL,
+        caption = NULL
+      ) +
+      ggplot2::theme(
+        plot.margin = ggplot2::margin(0, 0, 0, 0)
+      )
+  )
+
+  # I include my narrative in the child source so its inline R and R
+  # chunks execute. If I name a chunk in a narrative file, I give it a
+  # label that is unique across the whole report.
+  community_narrative <- readLines(
+    file.path(
+      analysis_folder,
+      paste0("community_", community_number, ".md")
+    ),
+    encoding = "UTF-8",
+    warn = FALSE
+  )
+
+  # I use a shorter figure to reduce vertical space around the cloud.
+  # I include both numeric IDs in its chunk label to distinguish figures.
+  child_source <- c(
+    "",
+    heading,
+    "",
+    paste0(
+      "```{r cloud-",
+      cluster_number,
+      "-",
+      community_number,
+      "}"
+    ),
+    "#| echo: false",
+    "#| fig-width: 12",
+    "#| fig-height: 5",
+    '#| out-width: "100%"',
+    '#| classes: "cloud-figure"',
+    "print(current_cloud)",
+    "```",
+    "",
+    community_narrative,
+    ""
+  )
+
+  # I knit the cloud and narrative together using this community's data,
+  # then insert the rendered result into the parent report.
+  cat(
+    knitr::knit_child(
+      text = child_source,
+      envir = child_environment,
+      quiet = TRUE
+    ),
+    sep = "\n"
+  )
+}
+```
+
+## Most cited publications by community
+
+Select one of the communities above to populate the table. The table shows up to five publications per selected research community, arranged by highest Total Citation count within the research community under consideration. Under Membership vector column headers indicate abbreviated community research labels. Each row sum totals 1.0. Values of 1 indicate maximal cluster affiliation; distributed values indicate multithematic papers whose affiliation reaches into more than one research community [@aria2026; @aria2026a]. TCpY = Total Citations per Year.
+
+```{r}
+#| label: cluster-publication-lookup
+#| echo: false
+
+# I build the code key from this research cluster's saved community numbers.
+community_key <- cluster_bundle$community_lookup |>
+  dplyr::distinct(community_number, community_label) |>
+  dplyr::arrange(community_number) |>
+  dplyr::mutate(Code = paste0("C", community_number))
+
+# I use the parent-cluster table so the widget covers all its communities.
+documents <- cluster_bundle$documentToCommunities
+
+# I give each available membership column its short display code.
+membership_key <- community_key |>
+  dplyr::filter(community_label %in% names(documents))
+
+membership_names <- stats::setNames(
+  membership_key$community_label,
+  membership_key$Code
+)
+
+# I select up to five publications per assigned community by total citations.
+# I break citation ties by publication year, then by short reference.
+top_cited <- documents |>
+  dplyr::ungroup() |>
+  dplyr::filter(
+    Assigned_cluster %in% community_key$community_label,
+    !is.na(TC)
+  ) |>
+  dplyr::arrange(community_number, dplyr::desc(TC), dplyr::desc(PY), SR) |>
+  dplyr::group_by(Assigned_cluster) |>
+  dplyr::slice_head(n = 5) |>
+  dplyr::ungroup() |>
+  dplyr::mutate(
+    # I use a factor so the community filter offers a list of codes.
+    `Assigned community` = factor(
+      community_key$Code[
+        match(Assigned_cluster, community_key$community_label)
+      ],
+      levels = community_key$Code
+    )
+  ) |>
+  dplyr::select(
+    `Assigned community`,
+    `Publication title` = TI,
+    Year = PY,
+    TC,
+    TCpY,
+    dplyr::all_of(membership_names)
+  ) |> 
+	  dplyr::mutate(
+    `Publication title` = dplyr::if_else(
+      `Publication title` == toupper(`Publication title`),
+      tools::toTitleCase(tolower(`Publication title`)),
+      `Publication title`
+    )
+  )
+
+# I display the code key once, above the searchable table.
+display_key <- community_key |>
+  dplyr::select(Code, `Community label` = community_label)
+```
+
+```{r}
+#| label: cluster-publication-widget
+#| echo: false
+
+tags <- htmltools::tags
+
+# I match my edited titles to the saved community numbers.
+title_rows <- match(
+  as.character(community_key$community_number),
+  as.character(community_titles$community_number)
+)
+
+# I use the full title in the dropdown and the short title in the header.
+# I fall back to the saved label or community code when a title is blank.
+dropdown_titles <- dplyr::coalesce(
+  dplyr::na_if(trimws(community_titles$title[title_rows]), ""),
+  as.character(community_key$community_label)
+)
+
+short_titles <- dplyr::coalesce(
+  dplyr::na_if(trimws(community_titles$short_title[title_rows]), ""),
+  as.character(community_key$Code)
+)
+
+membership_codes <- membership_key$Code
+membership_headers <- short_titles[
+  match(membership_codes, community_key$Code)
+]
+
+# I keep the assigned code for grouping but omit it from the visible table.
+publication_columns <- c("Publication title", "Year", "TC", "TCpY")
+visible_columns <- c(publication_columns, membership_codes)
+
+# I offer dropdown choices only for communities with publication rows.
+assigned_codes <- as.character(top_cited[["Assigned community"]])
+available <- which(community_key$Code %in% assigned_codes)
+
+dropdown_options <- lapply(available, function(i) {
+  tags$option(value = community_key$Code[[i]], dropdown_titles[[i]])
+})
+
+# I create one hidden table body per community.
+# I keep the citation order already established in top_cited.
+table_bodies <- lapply(available, function(i) {
+  code <- community_key$Code[[i]]
+  rows <- top_cited[which(assigned_codes == code), visible_columns, drop = FALSE]
+
+  tags$tbody(
+    `data-community` = code,
+    hidden = "hidden",
+    lapply(seq_len(nrow(rows)), function(j) {
+      tags$tr(lapply(visible_columns, function(column) {
+        value <- rows[[column]][[j]]
+
+        # I show blank cells for missing values and round decimal measures.
+        if (is.na(value)) {
+          value <- ""
+        } else if (column %in% c("TCpY", membership_codes)) {
+          value <- formatC(value, format = "f", digits = 1)
+        }
+
+        tags$td(as.character(value))
+      }))
+    })
+  )
+})
+
+# I give the four publication columns two-row headers and group the
+# membership headings under one spanning cell.
+table_header <- tags$thead(
+  tags$tr(
+    lapply(publication_columns, function(label) {
+      tags$th(rowspan = 2L, scope = "col", label)
+    }),
+    tags$th(
+      colspan = length(membership_codes),
+      scope = "colgroup",
+      style = "text-align: center;",
+      "Membership vector"
+    )
+  ),
+  tags$tr(lapply(membership_headers, function(label) {
+    tags$th(scope = "col", label)
+  }))
+)
+
+tags$div(
+  class = "community-publication-lookup",
+# I replace the existing tags$style(...) inside the lookup's outer div
+# with this version. I keep the rule that hides unselected communities.
+tags$style(htmltools::HTML("
+  /* I keep unselected community rows hidden. */
+  .community-publication-lookup tbody[hidden] {
+    display: none !important;
+  }
+
+  /* I set the font size and keep the table within the page width. */
+  .community-publication-lookup table {
+    width: 100%;
+    table-layout: fixed;
+    font-size: 0.7rem;
+  }
+
+  /* I let publication titles and other body text wrap. */
+  .community-publication-lookup th,
+  .community-publication-lookup td {
+    white-space: normal;
+    overflow-wrap: anywhere;
+    padding: 0.25rem;
+    vertical-align: top;
+  }
+
+  /* I override the wrapping rule for headers only. */
+  .community-publication-lookup thead th {
+    white-space: nowrap;
+    overflow-wrap: normal;
+  }
+
+  /* I reserve 25% of the width for publication titles. */
+  .community-publication-lookup thead tr:first-child > th:first-child {
+    width: 25%;
+  }
+
+  /* I reserve 6% each for Year, TC, and TCpY. */
+  .community-publication-lookup thead tr:first-child > th:nth-child(2),
+  .community-publication-lookup thead tr:first-child > th:nth-child(3),
+  .community-publication-lookup thead tr:first-child > th:nth-child(4) {
+    width: 6%;
+  }
+")),
+  tags$label(
+    "Community: ",
+    tags$select(
+      tags$option(value = "", "Select a community"),
+      dropdown_options
+    )
+  ),
+  tags$div(
+    style = "overflow-x: auto; margin-top: 0.75rem;",
+    tags$table(class = "table", table_header, table_bodies)
+  ),
+  tags$script(htmltools::HTML("
+    (() => {
+      // I scope the dropdown to this table.
+      const lookup = document.currentScript.parentElement;
+      const select = lookup.querySelector('select');
+      const bodies = lookup.querySelectorAll('tbody[data-community]');
+
+      // I show only the body with the selected community code.
+      function updateRows() {
+        bodies.forEach(body => {
+          body.hidden = body.dataset.community !== select.value;
+        });
+      }
+
+      select.addEventListener('change', updateRows);
+      updateRows();
+    })();
+  "))
+)
+```
