@@ -1,0 +1,181 @@
+---
+title: "Profile of the SMU-affiliated research corpus"
+format:
+  html:
+    toc: false
+    code-fold: false
+    code-tools: false
+bibliography: references.bib
+execute:
+  echo: false
+  message: false
+  warning: false
+  error: false
+---
+
+```{r}
+#| label: load-main-information
+#| include: false
+
+library(here)
+library(knitr)
+library(ggplot2)
+
+# I load the saved analysis without printing the bundle.
+data_bundle_main_info <- readRDS(
+  here::here("data_clean", "analysis_bundles", "data_bundle_main_info.rds")
+)
+
+# I extract a single cell for inline prose, including from tibbles.
+bundle_cell <- function(object, row, column) {
+  data_bundle_main_info[[object]][[column]][[row]]
+}
+
+report_table <- function(object, col_names = NULL, digits = 2) {
+  # I retrieve the table and use its column names unless I supply labels.
+  data <- data_bundle_main_info[[object]]
+  if (is.null(col_names)) {
+    col_names <- names(data)
+  }
+
+  # I left-align every column, including numeric columns.
+  knitr::kable(
+    data,
+    col.names = col_names,
+    digits = digits,
+    row.names = FALSE,
+    align = rep("l", ncol(data))
+  )
+}
+```
+
+## Disciplinary Distribution
+
+To describe the disciplinary profile of SMU-affiliated research, I matched the Web of Science subject categories in the corpus to fields represented by SMU’s academic units. When a publication was assigned to more than one category, I counted it in each applicable category. For each matched category, I counted the total number of SMU-affiliated publications, identified the venue in which they appeared most often, and reported how many appeared in that venue. This shows how the research represented in the corpus aligns with the disciplines at SMU. Although the matches presented in @tbl-top-venues are based on publication subject categories, they provide a reasonable approximation of units at Saint Mary's University.
+
+The SMU-affiliated corpus contains `r nrow(data_bundle_main_info$local_sc_master_list)` of the 254 subject categories used by Web of Science (WoS). identifies the leading venue in each category and its publication count. @tbl-source-diversity gives the number of venues and publications by category.
+
+```{r}
+#| label: tbl-top-venues
+#| tbl-cap: "Leading publication venue and publication count by subject"
+
+report_table("top_venues_per_sc", c("Subject/Discipline", "Top Publication Venue", "Publications"))
+```
+
+I put this @tbl-source-diversity together to give a sense of how many SMU-affiliated publications appeared in the most common venue for each field represented at SMU. The largest counts are in astronomy and physics, with 262 publications in *The Astrophysical Journal* and 96 in *Physical Review C*. I also notice how often journals with a Canadian identity lead their fields. In 10 of the 23 categories, the leading journal has “Canadian” in its title or names a Canadian scholarly association. The *Canadian Journal of Earth Sciences* leads in geology with 80 publications, the *Canadian Journal of Chemistry* leads in chemistry with 43, and the *Canadian Historical Review* leads in history with 22.
+
+```{r}
+#| label: tbl-source-diversity
+#| tbl-cap: "Publication venues and publication counts by subject"
+
+report_table("source_diversity_summary", c("Subject/Discipline", "Unique Publication Venues", "Publication Count"))
+```
+
+## Research Productivity
+
+Annual publication growth was `r bundle_cell("main_information", 3, 2)`%, and the average document age was `r bundle_cell("main_information", 4, 2)` years (@tbl-main-information). The most recent 15 years account for `r data_bundle_main_info$modern_proportion`% of publications. @fig-publication-growth shows the growth in annual publicaiton counts.
+
+```{r}
+#| label: fig-publication-growth
+#| fig-cap: "Number of publications over time"
+
+data_bundle_main_info$num_pubs_across_time_plot
+```
+
+The growth evident in @fig-publication-growth amounts to a `r data_bundle_main_info$growth_rate`% compound annual growth rate. At this level, and using a constant-rate calculation, the count of publications at SMU doubles in about 12 to 13 years, which resonates with the average document age of 14 years. For historical context, @bornmann2015 reports an annual growth rate of about 3% for a different corpus and period.
+
+## Research Impact
+
+### Average Citations per Publication
+
+Publications averaged `r bundle_cell("citation_dist_summary", 1, 1)` citations, with a median of `r bundle_cell("citation_dist_summary", 1, 2)` and a maximum of `r bundle_cell("citation_dist_summary", 1, 3)` (@tbl-citation-distribution). The mean exceeds the median because the distribution has a tail of highly cited papers [@aria2026a]. The interquartile range describes the spread of the middle half, and the table reports the number and share of uncited publications.
+
+```{r}
+#| label: tbl-citation-distribution
+#| tbl-cap: "Citation distribution summary"
+
+report_table("citation_dist_summary", c("Mean", "Median", "Maximum", "IQR", "Uncited (count)", "Uncited (%)"))
+```
+
+### Average Citations per Year per Publication
+
+By accounting for the age of each publication in the corpus, we can take into account the citaiton bias older publications receive. The mean value is `r data_bundle_main_info$mean_TCperYear_dist_summary[1]` citations per year and the median is `r data_bundle_main_info$mean_TCperYear_dist_summary[2]`.
+
+```{r}
+#| label: tbl-citation-velocity-summary
+#| tbl-cap: "Citation velocity distribution summary"
+
+report_table("mean_TCperYear_dist_summary", c("Mean", "Median", "Maximum", "IQR", "Uncited (count)", "Uncited (%)"))
+```
+
+### Publications ranked by Average Citations per Year per Publication
+
+As measures of influence available in this corpus and with the methods employed here, @tbl-citation-distribution and @tbl-top-mean-annual-citations lists the 15 citations with the highest citation count and annual mean citation rates at SMU.
+
+```{r}
+#| label: tbl-top-citations
+#| tbl-cap: "Most cited publications"
+
+report_table("most_cited", c("Local Author(s)", "Total Authors", "Title", "Year", "Citations"))
+```
+
+```{r}
+#| label: tbl-top-mean-annual-citations
+#| tbl-cap: "Most cited publications by mean annual citations"
+
+report_table("avg_cite_doc_year", c("Local Author(s)", "Total Authors", "Title", "Year", "Annual Mean"))
+```
+
+I read the two rankings as showing different ways SMU-affiliated research has been cited. The total-citation list includes several papers from the 1990s that have accumulated more than 1,000 citations, led by Wilkes and Zaworotko’s 1992 paper on ionic liquids with 1,771. The annual ranking brings astronomy collaborations to the top. The 2025 Euclid mission overview leads at 227 citations per year, followed by the Hyper Suprime-Cam survey and the COSMOS2020 catalogues.
+
+Nine publications appear in both top-15 lists, spanning topics such as chronic pain in children and adolescents, corporate environmental strategy, and mercury in aquatic food webs. The two lists also show the range of collaboration behind this work. Sharma’s single-author study of corporate environmental strategy appears in both rankings, while the Euclid overview, with 1,137 authors, leads the annual ranking.
+
+On the basis of citation counts, research at SMU has occupiked the attention of those working in the areas of astronomy and astrophysics, chemistry, child and adolescent health, plant science, ecology, ecotoxicology, and business and management. Astronomy accounts for the three highest annual citation rates, while chemistry leads in total citations through the 1992 paper on ionic liquids. Environmental research runs across several of these fields, from studies of tundra vegetation and mercury in aquatic food webs to work on community-based monitoring and corporate environmental strategy.
+
+## Authorship and Collaboration
+
+The corpus was produced by a total of `r data_bundle_main_info$num_authors` authors. International co-authorship accounts for `r data_bundle_main_info$author_information[6,2]`% of 0=of the corpus, while sole-authored publications account for `r data_bundle_main_info$proportion_sole_author_pubs`% of the corpus (@tbl-author-information). The mean number of authors per publication is `r bundle_cell("author_count_summary", 1, 1)`, compared with a median of `r bundle_cell("author_count_summary", 1, 2)`. International co-authorship and team size describe different aspects of collaboration: whether authors are based in more than one country, and how many authors appear on the publication.
+
+```{r}
+#| label: tbl-author-count
+#| tbl-cap: "Distribution of author counts per publication"
+
+report_table("author_count_summary", c("Mean", "Median", "Maximum", "IQR", "Sole Author (count)", "Sole Author (%)"))
+```
+
+## Scholarly Activity
+
+Absolute frequency and fractionalized frequency (@tbl-faculty-publications) provide two measures of scholarly productivity. While absolute frequency gives an author one count for each publication on which they appear, fractionalized frequency allocates each author $1/N$ of a paper with $N$ authors. For an author with one sole-authored paper, one two-author paper, and one five-author paper, the absolute count is three and the fractional count is $1 + 0.5 + 0.2 = 1.7$. The fractional shares for each publication sum to one across its authors.
+
+```{r}
+#| label: tbl-faculty-publications
+#| tbl-cap: "Publication counts by faculty member and academic unit"
+
+report_table(
+  "sorted_relevant_authors",
+  c("Author", "Absolute Frequency", "Fractionalized Frequency", "Academic Department")
+)
+```
+
+I read the two columns in light of how research is organized across disciplines. In the humanities, fields such as English and history often centre on work by individual scholars, including single-authored articles and monographs. In parts of the social sciences, including economics and international development, single-author and two-author work is also common. Biology and chemistry often organize research around laboratories, where several researchers contribute to an experiment or a series of studies. Geology can likewise involve field and laboratory teams. In astronomy, surveys and missions can bring together hundreds of researchers across institutions.These practices show up differently in the two columns. Absolute frequency counts a publication once for each author, while fractionalized frequency divides one publication count equally among its authors. Dostal in Geology leads the table by absolute frequency with 212 publications and has a fractionalized count of 68. Stanivukovic in English has 72 publications and a fractionalized count of 69, a pattern consistent with publishing mainly as a sole author. Dilmaghani in Economics also retains much of the absolute count, moving from 61 to 54, while Sun in Biology moves from 144 to 32. I use the two columns together to see how often each scholar publishes and how the size of their author teams changes the ranking.
+
+## Document Types
+
+@tbl-publication-types groups related WoS labels. Standard Article and Review Article include their early-access variants. Proceedings and meeting abstracts are grouped together, as are standard and early-access book reviews. The Monograph Chapter category includes the chapter, editorial, and review items assigned to it in the source classification.
+
+```{r}
+#| label: tbl-publication-types
+#| tbl-cap: "Publication type distribution"
+
+report_table("publication_types", c("Publication Type", "Count"))
+```
+
+Standard articles account for 5,649 of the 7,674 records in the document-type summary, or about 74%. Proceedings and meeting abstracts account for another 738 records. Book reviews (529) and monograph chapters (405) together account for about 12%. Editorial material, corrections, retractions, creative work, and other formats make up the remainder.
+
+## Section Summary
+
+The SMU-affiliated research corpus spans 148 Web of Science subject categories. Astronomy and astrophysics has the most publications among the fields matched to SMU academic units, while business and economics has the widest range of publication venues. Canadian journals are the most common venues in several fields, including geology, chemistry, and history. Annual publication output grew by 5.7%, and 63% of publications appeared in the most recent 15 years. The median publication received eight citations. A chemistry paper on ionic liquids leads in total citations, while astronomy collaborations occupy the top three places by average annual citations. International co-authorship accounts for 41.2% of the corpus, and 22% of publications have a sole author. This range of authorship practices helps explain why rankings by publication count shift when each publication is divided among its authors. Standard articles make up about three-quarters of the records in the document-type summary, with conference contributions, book reviews, and monograph chapters among the other forms of scholarship represented.
+
+I read the Web of Science corpus as showing two concentrations of publication activity at SMU. One is in the physical and earth sciences. Astronomy and astrophysics leads the matched subject categories with 1,033 publications, and chemistry (593), geology (450), and physics (434) each contribute substantial bodies of work. The other is in business and economics, which approaches astronomy in publication volume (924) and spans the widest range of venues (369). Psychology, with 585 publications, is another centre of activity, close to chemistry in volume. The citation rankings add a different dimension to this profile. Astronomy collaborations occupy the first three positions by average annual citations, while a chemistry paper leads in total citations and work on corporate environmental strategy appears in both rankings.
+
+I interpret these patterns in light of what Web of Science indexes. The publication counts depend on which journals, books, and conference proceedings the database covers, and the citation counts depend on which citations it captures. This point is relevant because fields communicate their research through different outlets. A field that publishes principally in indexed journals may be more visible in this profile than one in which monographs, book chapters, or locally oriented venues play a larger role. I therefore take these concentrations as an account of where SMU’s research is most visible in Web of Science, with the same coverage in mind when interpreting which work has drawn the most citations.

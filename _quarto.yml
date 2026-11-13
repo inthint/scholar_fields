@@ -3,6 +3,7 @@ project:
   output-dir: docs
   render:
     - index.qmd
+    - main_info.qmd
     - full_keyword_network.qmd
     - cluster_reports/cluster_report_1.qmd
     - cluster_reports/cluster_report_2.qmd
@@ -18,8 +19,10 @@ website:
     left:
       - href: index.qmd
         text: Start Here
+      - href: main_info.qmd
+        text: Describing the Corpus
       - href: full_keyword_network.qmd
-        text: The SMU-affiliated Corpus
+        text: Co-word Analysis
       - href: cluster_reports/cluster_report_1.qmd
         text: Research Cluster 1
       - href: cluster_reports/cluster_report_2.qmd

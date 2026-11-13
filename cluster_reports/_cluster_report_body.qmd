@@ -316,13 +316,28 @@ network_interactive <- visNetwork::visNetwork(
 #| label: cluster-narrative
 #| results: asis
 
-# I knit the overview in the report environment so its code can refer
-# to cluster_bundle. I render this .qmd rather than the .md file alone.
-overview_source <- readLines(
+# I read the cluster overview first and append the text shared by every cluster.
+overview_paths <- c(
   file.path(analysis_folder, "overview.md"),
-  encoding = "UTF-8",
-  warn = FALSE
+  file.path(params$analysis_directory, "shared_overview.md")
 )
+
+overview_parts <- lapply(overview_paths, function(path) {
+  full_path <- file.path(getwd(), path)
+  if (startsWith(path, "/")) {
+    full_path <- path
+  }
+
+  # I report the file path so I can tell which Markdown file needs fixing.
+  tryCatch(
+    readLines(path, encoding = "UTF-8", warn = FALSE),
+    error = function(err) {
+      stop("Cannot read overview file: ", full_path, call. = FALSE)
+    }
+  )
+})
+
+overview_source <- c(overview_parts[[1]], "", overview_parts[[2]])
 
 cat(
   knitr::knit_child(

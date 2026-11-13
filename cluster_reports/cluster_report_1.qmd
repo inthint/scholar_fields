@@ -15,4 +15,5 @@ execute:
   message: false
 bibliography: "../references.bib"
 ---
+
 {{< include _cluster_report_body.qmd >}}

@@ -1,5 +1,5 @@
 ---
-title: "Describing the SMU-affiliated Research Corpus"
+---
 ---
 
 ## Introduction
