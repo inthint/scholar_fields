@@ -493,7 +493,7 @@ for (community_number in community_numbers) {
 
 ## Most cited publications by community
 
-Select one of the communities above to populate the table. The table shows up to five publications per selected research community, arranged by highest Total Citation count within the research community under consideration. Under Membership vector column headers indicate abbreviated community research labels. Each row sum totals 1.0. Values of 1 indicate maximal cluster affiliation; distributed values indicate multithematic papers whose affiliation reaches into more than one research community [@aria2026; @aria2026a]. TCpY = Total Citations per Year.
+Select one of the communities above to populate the table. The table shows up to five publications per selected research community, arranged by highest Total Citation count within the research community under consideration. Under Membership vector the column headers indicate abbreviated research community labels. Each row sum totals 1.0. Values of 1 indicate maximal research community affiliation; distributed values indicate multithematic papers whose affiliation reaches into more than one research community [@aria2026b; @aria2026]. TCpY = Total Citations per Year.
 
 ```{r}
 #| label: cluster-publication-lookup
