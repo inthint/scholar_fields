@@ -92,23 +92,23 @@ Publications averaged `r bundle_cell("citation_dist_summary", 1, 1)` citations, 
 
 ```{r}
 #| label: tbl-citation-distribution
-#| tbl-cap: "Citation distribution summary"
+#| tbl-cap: "Distribution of average citations"
 
 report_table("citation_dist_summary", c("Mean", "Median", "Maximum", "IQR", "Uncited (count)", "Uncited (%)"))
 ```
 
 ### Average Citations per Year per Publication
 
-By accounting for the age of each publication in the corpus, we can take into account the citaiton bias older publications receive. The mean value is `r data_bundle_main_info$mean_TCperYear_dist_summary[1]` citations per year and the median is `r data_bundle_main_info$mean_TCperYear_dist_summary[2]`.
+By accounting for the age of each publication in the corpus, we can take into account the citation bias older publications receive. The mean value is `r data_bundle_main_info$mean_TCperYear_dist_summary[1]` citations per year and the median is `r data_bundle_main_info$mean_TCperYear_dist_summary[2]`.
 
 ```{r}
 #| label: tbl-citation-velocity-summary
-#| tbl-cap: "Citation velocity distribution summary"
+#| tbl-cap: "Distibution of average yearly citaiton"
 
 report_table("mean_TCperYear_dist_summary", c("Mean", "Median", "Maximum", "IQR", "Uncited (count)", "Uncited (%)"))
 ```
 
-### Publications ranked by Average Citations per Year per Publication
+### Publications ranked by Average Citations per Year
 
 As measures of influence available in this corpus and with the methods employed here, @tbl-citation-distribution and @tbl-top-mean-annual-citations lists the 15 citations with the highest citation count and annual mean citation rates at SMU.
 
@@ -134,7 +134,7 @@ On the basis of citation counts, research at SMU has occupiked the attention of 
 
 ## Authorship and Collaboration
 
-The corpus was produced by a total of `r data_bundle_main_info$num_authors` authors. International co-authorship accounts for `r data_bundle_main_info$author_information[6,2]`% of 0=of the corpus, while sole-authored publications account for `r data_bundle_main_info$proportion_sole_author_pubs`% of the corpus (@tbl-author-information). The mean number of authors per publication is `r bundle_cell("author_count_summary", 1, 1)`, compared with a median of `r bundle_cell("author_count_summary", 1, 2)`. International co-authorship and team size describe different aspects of collaboration: whether authors are based in more than one country, and how many authors appear on the publication.
+The corpus was produced by a total of 18,856 authors, a figure which speaks to co-authorship. International co-authorship accounts for `r data_bundle_main_info$author_information[6,2]`% of the corpus, while sole-authored publications account for `r data_bundle_main_info$proportion_sole_author_pubs`% of the corpus. The mean number of authors per publication is `r bundle_cell("author_count_summary", 1, 1)`, compared with a median of `r bundle_cell("author_count_summary", 1, 2)`. International co-authorship and team size describe different aspects of collaboration: whether authors are based in more than one country, and how many authors appear on the publication.
 
 ```{r}
 #| label: tbl-author-count
