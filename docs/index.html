@@ -20,7 +20,27 @@ ul.task-list li input[type="checkbox"] {
   margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
   vertical-align: middle;
 }
-</style>
+/* CSS for citations */
+div.csl-bib-body { }
+div.csl-entry {
+  clear: both;
+  margin-bottom: 0em;
+}
+.hanging-indent div.csl-entry {
+  margin-left:2em;
+  text-indent:-2em;
+}
+div.csl-left-margin {
+  min-width:2em;
+  float:left;
+}
+div.csl-right-inline {
+  margin-left:2em;
+  padding-left:1em;
+}
+div.csl-indent {
+  margin-left: 2em;
+}</style>
 
 
 <script src="site_libs/quarto-nav/quarto-nav.js"></script>
@@ -98,7 +118,7 @@ ul.task-list li input[type="checkbox"] {
   </li>  
   <li class="nav-item">
     <a class="nav-link" href="./full_keyword_network.html"> 
-<span class="menu-text">Co-word Analysis</span></a>
+<span class="menu-text">Describing the Keyword Network</span></a>
   </li>  
   <li class="nav-item">
     <a class="nav-link" href="./cluster_reports/cluster_report_1.html"> 
@@ -107,6 +127,10 @@ ul.task-list li input[type="checkbox"] {
   <li class="nav-item">
     <a class="nav-link" href="./cluster_reports/cluster_report_2.html"> 
 <span class="menu-text">Research Cluster 2</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="./cluster_reports/cluster_report_3.html"> 
+<span class="menu-text">Research Cluster 3</span></a>
   </li>  
   <li class="nav-item">
     <a class="nav-link" href="./cluster_reports/cluster_report_7.html"> 
@@ -137,50 +161,158 @@ ul.task-list li input[type="checkbox"] {
 
 
 <hr>
+<style>
+table.dataTable th {
+  white-space: nowrap;
+  vertical-align: middle;
+}
+
+table.dataTable td {
+  vertical-align: top;
+}
+
+table.dataTable td.dt-center,
+table.dataTable th.dt-center {
+  text-align: center;
+}
+
+table.dataTable td.dt-wrap {
+  white-space: normal;
+  line-height: 1.35;
+}
+
+.vis-network {
+  border: 1px solid #808080;
+  box-sizing: border-box;
+}
+</style>
 <section id="introduction" class="level2">
 <h2 class="anchored" data-anchor-id="introduction">Introduction</h2>
-<p>The expansion of corporate management models within higher education over the past several decades has begun to change how academic knowledge is produced, evaluated, and incentivised. To greater and lesser degrees, universities have transitioned away from traditional collegial governance structures toward managerial frameworks, commonly known as New Public Management (NPM). Under this corporate paradigm, senior university administration relies on institutional strategic research plans, formal performance indicators, and centralised accountability metrics to align faculty behaviours with broader organisational objectives.</p>
-<p>Below, I review some recent scholarship on academic managerialism to contextualise what for me, is becoming an increasinly intersting question: do strategic research plans work?</p>
+<p>These pages contain an occasional exploration of the thematic structure of the scholarly output of Saint Mary’s University. I’m leaning on methods of bibliometric network analysis and focusing on the co-word occurrence patterns of keywords. Please keep in mind that everything here is in development–and as errors emerge or things change, I’ll update what I’m on about here. For those interested in programming details, see this footnote.<a href="#fn1" class="footnote-ref" id="fnref1" role="doc-noteref"><sup>1</sup></a></p>
+<p>This exercise is based on 36 years of SMU-affiliated research, from January 1990 through December 2025. The corpus is restricted to publications for which the institutional affiliation metadata explicitly identifies SMU. No restrictions were placed on document type. These deliberately broad parameters were intended to capture the full range of scholarly outputs indexed by Web of Science (WoS) that can be attributed to faculty, staff, and researchers associated with SMU, providing a basis for examining publication behaviour, research activity, and patterns of connection and collaboration across the university community over the period.</p>
+<p>The search produced a corpus of 7,850 publications appearing across 2,862 different publication sources, reflecting a wide range of scholarly venues and the disciplinary breadth of the university. The corpus should not, however, be treated as a complete inventory of everything produced at SMU. Web of Science is widely used for bibliometric research, but, like all bibliographic databases, it is selective. Its coverage tends to favour English-language journals and disciplines in which journal articles and collaborative publication are dominant forms of scholarly communication. Fields in which research is more often communicated through books, book chapters, regional journals, professional publications, or other locally oriented venues may therefore be less completely represented. This is particularly consequential for some areas of the humanities and social sciences. The analysis should accordingly be understood as a description of the SMU research activity visible through Web of Science rather than an exhaustive account of the university’s entire research culture. Having said that, a manual review of the publications suggests that the coverage across disciplines is robust.</p>
 </section>
-<section id="academic-managerialism" class="level2">
-<h2 class="anchored" data-anchor-id="academic-managerialism">Academic Managerialism</h2>
-<p>The introduction of corporate steering in public research sectors is frequently framed as a necessary mechanism to increase operational efficiency and institutional accountability. Scholars examining the Central and Eastern European contexts demonstrate that department heads are forced to act as primary mediators, negotiating the friction between emerging corporate managerial expectations and traditional academic autonomy (Machovcova, Zabrodska, and Mudrak 2019). This transition shifts the university from an open site of unconstrained intellectual inquiry to a managed environment where output is being both quantified and regularised. Empirical observations of these policy shifts suggest that while they aim to stimulate public research efficiency, they can function as a double-edged sword, leading to administrative inflation and narrow publishing strategies among faculty (Schubert 2009).</p>
-<p>The global reach of these corporate practices is evident across diverse higher education landscapes, including developing regions such as the United Arab Emirates, where new managerialism is deployed to reshape institutional reputations (Ajayan and Balasubramanian 2020). When fiscal cutbacks occur, the pressure to maintain research performance becomes even more acute; institutions are forced to sustain or accelerate output levels even when financial incentives and direct support is declines (Bak and Kim 2023). At the core of this management system is the corporate premise that academic institutions are structurally no different from any commercial enterprise and can therefore be optimised through auditing and performance-monitoring systems (Hasham 2018). Consequently, the historical evolution of research performance measurement systems, particularly within heavily evaluated sectors like Australian higher education, outlines a steady intensification of administrative oversight (Martin-Sardesai et al.&nbsp;2019).</p>
-</section>
-<section id="institutional-leadership-and-strategic-shared-visions" class="level2">
-<h2 class="anchored" data-anchor-id="institutional-leadership-and-strategic-shared-visions">Institutional Leadership and Strategic Shared Visions</h2>
-<p>A central tenet of corporate strategic planning is that institutional leadership is in a position to steer research excellence. Recent quantitative modeling of presidential capabilities in Chinese higher education argues that specific strategic competencies at the executive level correlate positively with institutional performance gains and international visibility (Dong, Wu, and Yu 2025). Similarly, evaluations of academic leadership and university performance across European and Russian contexts investigate whether universities demonstrate measurable improvements when led by active, highly cited scholars who embody research excellence, rather than pure career administrators (Gerashchenko 2022). This structural steering is frequently reinforced by regional contagion effects, where the strategic choices and performance trajectories of neighbouring peer institutions create a normative pressure that drives local academic leadership to adopt identical strategic management models (Saftiuc, Proscanu, and Teodorescu 2025).</p>
-<p>For these administrative plans to translate into scholarly output, university leaders direct attention to building an institutional shared vision that attempts to bridge the historical divide between research and teaching mandates (Bui et al.&nbsp;2024). Senior management relies on transformational leadership styles, operating under the assumption that inspiring a collective corporate identity will foster internal creativity and outputs (Salim and Zakaria 2021). In fields such as green innovation and technology transfer, evidence indicates that the specific academic and corporate experiences of the top management team can shape the volume and direction of institutional innovation outputs (Zhao et al.&nbsp;2021). Moreover, when academic executives retain active boardroom connections, they can connect lab-based research with high-impact industrial commercialisation, demonstrating how top-down strategies attempt to steer basic science toward applied economic utility (Zhu, Wu, and Gaidai 2025).</p>
-</section>
-<section id="guiding-research-productivity" class="level2">
-<h2 class="anchored" data-anchor-id="guiding-research-productivity">Guiding Research Productivity</h2>
-<p>At the level of the faculty member, the primary mechanisms used to enforce strategic alignment are institutional incentives, formal performance appraisals, and individual research productivity tracking. Evidence suggests that while structured interventions can alter short-term output counts, they rarely change long-term scholarly trajectories (Ryazanova and Jaskiene 2022). While routine bibliometric reports are frequently positioned as one tool among many, these data summaries often function as coercive monitoring mechanisms that hold individual faculty accountable to generic performance targets (Cabezas-Clavijo and Torres-Salinas 2021). In some cases, advanced institutional frameworks have emerged, such as bibliometric strength, potential, and risk analysis models, which allow administrators to track exactly how faculty publication choices respond to central strategic choices and funding pathways (Iping et al.&nbsp;2024).</p>
-<p>The efficacy of these incentive structures remains dependent on localized professional contexts and personal scholarly investments. In Canada, broad empirical studies of primary care researchers demonstrate that productivity is strongly associated with protected research time, dedicated infrastructure, and targeted team-based funding rather than purely top-down corporate mandates (Aggarwal et al.&nbsp;2024). Furthermore, the specialized nature of research production is heavily reliant on specific cognitive resources and long-term personal investments, which means that arbitrary administrative redirections can result in cognitive friction and operational inefficiency for the scholar (Degli Antoni, Fia, and Sacconi 2022). Quantitative analyses of individual academic research agendas confirm that broader organizational factors and institutional priorities interact directly with disciplinary traditions, meaning that top-down steering tools must constantly compete with an academic’s internalized scholarly values and peer networks (Horta and Santos 2020).</p>
-</section>
-<section id="tensions-resistance-and-academic-freedom" class="level2">
-<h2 class="anchored" data-anchor-id="tensions-resistance-and-academic-freedom">Tensions, Resistance, and Academic Freedom</h2>
-<p>The imposition of corporate performance management has generated tensions, with many scholars arguing that these frameworks stifle academic freedom and distort genuine knowledge production. Critical discourse analyses highlight that aggressive performance management frameworks force a precarious state of affairs upon academic work, transforming scholarly writing into a rushed commodity designed to satisfy auditing cycles rather than solve profound intellectual problems (Morrish and Sauntson 2016). This shift creates a sense of alienation, where academic identities are systematically reconfigured to fit the parameters of the managed university, sparking widespread subtle resistance among faculty who seek to protect their professional autonomy from neoliberal encroachment (Morrish 2017). In specialized fields like social work education, the imposition of a marketized, neo-liberal agenda is shown to directly compromise the critical, social-justice mission of the discipline by prioritizing commercial metric capture over community engagement (MacDonald and Nixon 2016).</p>
-<p>The human cost of these auditing regimes is captured in qualitative terms by academics who describe the modern pressure cooker environment (Xu and Poole 2024). This creates institutional struggles for recognition where individual departments are pitted against one another for scarce resources, fragmenting the university’s traditional community of scholars (Muench and Baier 2012). Moreover, the formal policies and administrative structures often lack meaningful faculty buy-in because they are perceived as top-down compliance exercises rather than authentic scholarly transformations (Castro-Gomez et al.&nbsp;2026). Without aligning internal policy incentives directly with the intrinsic motivations and professional values of the faculty, centralized administrative mandates fail to cultivate genuine participation or sustainable scholarly growth (Barsallo et al.&nbsp;2026).</p>
-</section>
-<section id="do-strategic-research-plans-work" class="level2">
-<h2 class="anchored" data-anchor-id="do-strategic-research-plans-work">Do Strategic Research Plans Work?</h2>
-<p>This breief review on higher education management demonstrates a conflict between top-down corporate steering and bottom-up faculty behaviour. While institutional theories and administrative models posit that clear leadership capabilities, shared corporate visions, and targeted bibliometric monitoring can successfully optimize and direct an institution’s research performance, empirical accounts expose resistance, strategic gaming, and profound alignment failures. This contradiction exposes a gap in evaluative scientometrics: we lack robust, objective, longitudinal measures of whether corporate university strategies genuinely shape the intellectual landscape of an institution or if they merely retroactively rebrand pre-existing, faculty-driven strengths.</p>
-<p>It is with this in mind that I raise the following question: do strategic research plans work?</p>
-<p>I explore this question turning to the research corpus of Saint Mary’s University (SMU).</p>
-</section>
-<section id="data" class="level2">
-<h2 class="anchored" data-anchor-id="data">Data</h2>
-<p>This bibliometric study examines 36 years of SMU-affiliated research, from January 1990 through December 2025. The corpus is restricted to publications for which the institutional affiliation metadata explicitly identifies SMU. No restrictions were placed on document type. These deliberately broad parameters were intended to capture the full range of scholarly outputs indexed by Web of Science (WoS) that can be attributed to faculty, staff, and researchers associated with SMU, providing a basis for examining publication behaviour, research activity, and patterns of connection and collaboration across the university community over the period.</p>
-<p>The search produced a corpus of 7,850 publications appearing across 2,862 different publication sources, reflecting a wide range of scholarly venues and the disciplinary breadth of the university. The corpus should not, however, be treated as a complete inventory of everything produced at SMU. Web of Science is widely used for bibliometric research, but, like all bibliographic databases, it is selective. Its coverage tends to favour English-language journals and disciplines in which journal articles and collaborative publication are dominant forms of scholarly communication. Fields in which research is more often communicated through books, book chapters, regional journals, professional publications, or other locally oriented venues may therefore be less completely represented. This is particularly consequential for some areas of the humanities and social sciences. The analysis should accordingly be understood as a description of the SMU research activity visible through Web of Science rather than an exhaustive account of the university’s entire research culture.</p>
+<section id="the-how-co-word-analysis" class="level2">
+<h2 class="anchored" data-anchor-id="the-how-co-word-analysis">The How: Co-word Analysis</h2>
+<p>I use keyword co-occurrence analysis to examine the substantive organization of the SMU-affiliated corpus. The method belongs to the same broad family of bibliometric techniques as co-citation and co-author analysis, but its object is different: rather than asking which authors collaborate or which publications are cited together, it asks which research keywords co-occur across a collection of publications. Authors and databases use keywords to characterize the content of a publication, typically identifying concepts, topics, methods, populations, objects of study, or research problems. The underlying assumption is that these keywords are not distributed randomly. When two keywords repeatedly appear together in the same publications, that recurrence provides evidence that the ideas are being brought into relation within the literature. Co-word analysis therefore allows me to move from a collection of individual publications to a representation of the substantive relationships that recur across the corpus, without beginning from a predetermined classification of the literature.</p>
+<p>A keyword co-occurrence network is constructed by first counting these relationships. In the simplified example, a co-occurrence matrix contains six research keywords in its rows and columns, with each intersecting cell recording how many times a pair of keywords appears together. <em>Sport</em> and <em>Identity</em>, for example, have a co-occurrence value of five, whereas <em>Identity</em> and <em>Network Analysis</em> co-occur only once.</p>
+<div class="cell">
+<div class="cell-output-display">
+<table class="caption-top table table-sm table-striped small">
+<caption>Example Keyword Co-Occurrence Matrix</caption>
+<colgroup>
+<col style="width: 18%">
+<col style="width: 13%">
+<col style="width: 7%">
+<col style="width: 10%">
+<col style="width: 19%">
+<col style="width: 15%">
+<col style="width: 14%">
+</colgroup>
+<thead>
+<tr class="header">
+<th style="text-align: left;">Keyword</th>
+<th style="text-align: center;">Masculinity</th>
+<th style="text-align: center;">Sport</th>
+<th style="text-align: center;">Identity</th>
+<th style="text-align: center;">Network Analysis</th>
+<th style="text-align: center;">Bibliometrics</th>
+<th style="text-align: center;">Data Science</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;">Masculinity</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">4</td>
+<td style="text-align: center;">3</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">0</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Sport</td>
+<td style="text-align: center;">4</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">5</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">0</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Identity</td>
+<td style="text-align: center;">3</td>
+<td style="text-align: center;">5</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">1</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">0</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Network Analysis</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">1</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">6</td>
+<td style="text-align: center;">4</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Bibliometrics</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">6</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">5</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Data Science</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">4</td>
+<td style="text-align: center;">5</td>
+<td style="text-align: center;">0</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<p>The matrix is then converted into an undirected, weighted network using methods of network analysis. Each keyword becomes a node, and an edge connects two nodes when the corresponding keywords occur together in at least one publication. The weight of the edge records the frequency of that co-occurrence, allowing more recurrent relationships to be represented by thicker lines.</p>
+<p>Once represented as a network, additional measures can be used to describe the position of individual keywords and the structure of the network as a whole. Degree records the number of other keywords to which a keyword is directly connected, so a high-degree keyword is more extensively embedded in the network than one with relatively few connections. Clustering algorithms such as Louvain identify groups of keywords that are more densely connected to one another than to the rest of the network.</p>
+<div class="cell" data-layout-align="center">
+<div class="cell-output-display">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="index_files/figure-html/keyword-cooccurrence-network-1.png" class="img-fluid figure-img" width="960"></p>
+<figcaption>Example Keyword Co-Occurrence Network</figcaption>
+</figure>
+</div>
+</div>
+</div>
+<p>In the toy example, <em>Masculinity</em>, <em>Sport</em>, and <em>Identity</em> form one such group, while <em>Network Analysis</em>, <em>Bibliometrics</em>, and <em>Data Science</em> form another. The strongest relationships include <em>Network Analysis–Bibliometrics</em> (6), <em>Sport–Identity</em> (5), and <em>Bibliometrics–Data Science</em> (5). By contrast, the single co-occurrence between <em>Identity</em> and <em>Network Analysis</em> creates a comparatively weak bridge between the two clusters. The visualization therefore makes both internal cohesion and cross-cluster connection visible. Spatial position should be interpreted cautiously, however, because it is partly a consequence of the layout algorithm rather than an independent substantive property.</p>
+<p>What the resulting network reveals is not simply which keywords are common, but how the substantive vocabulary of a research corpus is organized relationally. Nodes identify the concepts present in the literature; degree indicates how broadly those concepts are connected; edge weights show which associations recur more or less frequently; and clusters identify concentrations of keywords that repeatedly occur together. When the highly connected keywords within a cluster point toward a coherent substantive concern, those clusters can reasonably be interpreted as research areas or thematic formations. The network can also identify bridging concepts that connect otherwise distinct areas of research and more peripheral keywords that occupy specialized positions.</p>
 </section>
 <section id="if-youve-made-it-this-far" class="level2">
 <h2 class="anchored" data-anchor-id="if-youve-made-it-this-far">If you’ve made it this far…</h2>
-<p>Navigating to <a href="./full_keyword_network.html">The SMU-affilated Corpus</a> will provide you with information about the intellectual network that emerges from bibliometric treatments of this corpus of publications.</p>
+<p>You’ll probably want to navigate to <a href="./full_keyword_network.html">Describing the Keyword Network</a> (links at the top of the page) where you’ll be able to explore some of details of the intellectual network that emerges from bibliometric treatments of this corpus of publications. Be sure to head to the <a href="full_keyword_network.html#author-lookup">author look up table</a>. Web of Science does a pretty good job of indexing and is one of the standards used in bibliometric research, but it is not exhaustive. A search for yourself or others you know will provide you with a measure–or not–of how valid my emerging suggestions are. <a href="./main_info.html">Describing the Corpus</a> provides a few global measures–most cited publications and growth rate of the corups, for example–of the scholarship at SMU.</p>
+
 
 
 </section>
 
-</main> <!-- /main -->
+
+<div id="quarto-appendix" class="default"><section class="quarto-appendix-contents" role="doc-bibliography" id="quarto-bibliography"><h2 class="anchored quarto-appendix-heading">References</h2><div id="refs" class="references csl-bib-body hanging-indent" data-entry-spacing="0" role="list">
+<div id="ref-bibliometrix" class="csl-entry" role="listitem">
+Aria, Massimo, and Corrado Cuccurullo. 2017. <span>“Bibliometrix: An r-Tool for Comprehensive Science Mapping Analysis.”</span> <a href="https://doi.org/10.1016/j.joi.2017.08.007">https://doi.org/10.1016/j.joi.2017.08.007</a>.
+</div>
+</div></section><section id="footnotes" class="footnotes footnotes-end-of-document" role="doc-endnotes"><h2 class="anchored quarto-appendix-heading">Footnotes</h2>
+
+<ol>
+<li id="fn1"><p>To think through this exercise, I’m relying heavily on the R programming universe and, in particular, on the Bibliometrix package <span class="citation" data-cites="bibliometrix">(<a href="#ref-bibliometrix" role="doc-biblioref">Aria and Cuccurullo 2017</a>)</span>.<a href="#fnref1" class="footnote-back" role="doc-backlink">↩︎</a></p></li>
+</ol>
+</section></div></main> <!-- /main -->
 <script id="quarto-html-after-body" type="application/javascript">
 window.document.addEventListener("DOMContentLoaded", function (event) {
   const toggleBodyColorMode = (bsSheetEl) => {

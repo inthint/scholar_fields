@@ -7,6 +7,7 @@ project:
     - full_keyword_network.qmd
     - cluster_reports/cluster_report_1.qmd
     - cluster_reports/cluster_report_2.qmd
+    - cluster_reports/cluster_report_3.qmd
     - cluster_reports/cluster_report_7.qmd
     - about.qmd
 
@@ -22,11 +23,13 @@ website:
       - href: main_info.qmd
         text: Describing the Corpus
       - href: full_keyword_network.qmd
-        text: Co-word Analysis
+        text: Describing the Keyword Network
       - href: cluster_reports/cluster_report_1.qmd
         text: Research Cluster 1
       - href: cluster_reports/cluster_report_2.qmd
         text: Research Cluster 2
+      - href: cluster_reports/cluster_report_3.qmd
+        text: Research Cluster 3
       - href: cluster_reports/cluster_report_7.qmd
         text: Research Cluster 7
 
